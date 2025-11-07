@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>FERRO / Измерения</title>
+    <link rel="icon" href="https://repas.app/img/basic/logo_green_sl.svg" type="image/x-icon" sizes="any">
+    <link href="index-ver2.0.css" rel="stylesheet">
+    <script src="https://code.jquery.com/jquery-latest.js" type="text/javascript"></script>
+    <script src="js/jquery.min.js" type="text/javascript"></script>
+    <script src="js/jquery-ui.min.js" type="text/javascript"></script>
+    <script src="js/jquery.ui.touch-punch.min.js"></script>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, user-scalable=no">
+    <style>
+        :root {
+            /* --repas-avatar-user: url('https://sun7-6.userapi.com/s/v1/ig1/iXIW1GFx_o9s2w2leVOChd6-lfIiMI8OobK4UW1PVBsbx-TQKvfVdinF8z00p95s2g0OHrqm.jpg?size=50x50&quality=96&crop=645,5,1167,1167&ava=1');*/
+            --repas-user-background: #cbd5d6;
+            --repas-avatar-user: url('img/avatars/peeps-avatar-alpha (1).png') center/110% no-repeat, linear-gradient(to top, var(--repas-user-background), var(--repas-user-background));
+        }
+    </style>
+</head>
+<body class="_body">
+<div class="_body_load_construct">
+    <div class="_block_menu_body_construct">
+        <div class="_block_head_menu_construct_block">
+           <!-- <div class="_block_logo_admin_panel_content">
+                <div class="_block_logo_admin_panel"></div>
+            </div>-->
+            <a href="">
+                <div class="_link_item_menu_construct">
+                    <div class="_icon_item_link_menu_cont">
+                        <div class="_icon_item_link_menu">
+                            <span class="_icon_svg_menu_block _icon_menu_menu"></span>
+                        </div>
+                    </div>
+                    <div class="_name_link_item_content">FERRO</div>
+                </div>
+            </a>
+        </div>
+        <div class="_content_block_menu">
+            <a href="">
+                <div class="_link_item_menu_construct">
+                    <div class="_icon_item_link_menu_cont">
+                        <div class="_icon_item_link_menu">
+                            <span class="_icon_svg_menu_block _icon_menu_home"></span>
+                        </div>
+                    </div>
+                    <div class="_name_link_item_content">Главная</div>
+                </div>
+            </a>
+            <a href="staff.html">
+                <div class="_link_item_menu_construct">
+                    <div class="_icon_item_link_menu_cont">
+                        <div class="_icon_item_link_menu">
+                            <span class="_icon_svg_menu_block _icon_menu_measurement"></span>
+                        </div>
+                    </div>
+                    <div class="_name_link_item_content">Измерения</div>
+                </div>
+            </a>
+            <a href="">
+                <div class="_link_item_menu_construct">
+                    <div class="_icon_item_link_menu_cont">
+                        <div class="_icon_item_link_menu">
+                            <span class="_icon_svg_menu_block _icon_menu_calculation"></span>
+                        </div>
+                    </div>
+                    <div class="_name_link_item_content">Вычисления</div>
+                </div>
+            </a>
+        </div>
+        <div class="_block_footer_menu_content">
+            <a class="_notification_card">
+                <div class="_link_item_menu_construct">
+                    <div class="_icon_item_link_menu_cont">
+                        <div class="_icon_item_link_menu">
+                            <span class="_icon_svg_menu_block _icon_menu_notification"></span>
+                        </div>
+                    </div>
+                    <div class="_name_link_item_content">Уведомления <span class="_new_task_menu_notif">2</span></div>
+                </div>
+            </a>
+            <a href="">
+                <div class="_link_item_menu_construct">
+                    <div class="_icon_item_link_menu_cont">
+                        <div class="_icon_item_link_menu">
+                            <span class="_icon_svg_menu_block _icon_menu_setting"></span>
+                        </div>
+                    </div>
+                    <div class="_name_link_item_content">Настройки</div>
+                </div>
+            </a>
+            <a class="_setting_account_card">
+                <div class="_link_item_menu_construct">
+                    <div class="_icon_item_link_menu_cont">
+                        <div class="_icon_item_link_menu">
+                            <span class="_icon_svg_menu_block _icon_menu_account"></span>
+                        </div>
+                    </div>
+                    <div class="_name_link_item_content">User</div>
+                </div>
+            </a>
+        </div>
+    </div>
+    <div class="_notification_block_content">
+        <div class="_title_block_menu_card">Уведомления</div>
+        <div class="_block_no_fields_content" style="display: none">
+            <div class="_block_no_fields">
+                <div class="_no_fields_title">Пока тут пусто</div>
+                <div class="_no_fields_text">У Вас нет уведомлений</div>
+            </div>
+        </div>
+        <div class="_scroll_box_notification">
+            <div class="_block_history_log">
+                <div class="_head_block_history_log">
+                    <div class="_v_align">
+                        <div class="_avatar_block_history_log"></div>
+                        <div class="_block_user_info_history_log">
+                            <div class="_name_person_log">Егор Партолин</div>
+                            <div class="_post_user_history_log">Администратор Repas</div>
+                        </div>
+                    </div>
+                    <div class="_v_align">
+                        <div class="_timestamp_history_log">22 окт в 17:18</div>
+                    </div>
+                </div>
+                <div class="_body_notification_block">
+                    <div class="_text_block_notification">Заканчивается срок <a href="">лицензии Repas</a>, пожалуйста продлите её.</div>
+                </div>
+            </div>
+            <div class="_block_history_log">
+                <div class="_head_block_history_log">
+                    <div class="_v_align">
+                        <div class="_avatar_block_history_log"></div>
+                        <div class="_block_user_info_history_log">
+                            <div class="_name_person_log">Егор Партолин</div>
+                            <div class="_post_user_history_log">Администратор Repas</div>
+                        </div>
+                    </div>
+                    <div class="_v_align">
+                        <div class="_timestamp_history_log">22 окт в 17:18</div>
+                    </div>
+                </div>
+                <div class="_body_notification_block">
+                    <div class="_text_block_notification">Заканчивается срок <a href="">лицензии Repas</a>, пожалуйста продлите её.</div>
+                </div>
+            </div>
+            <div class="_block_history_log">
+                <div class="_head_block_history_log">
+                    <div class="_v_align">
+                        <div class="_avatar_block_history_log"></div>
+                        <div class="_block_user_info_history_log">
+                            <div class="_name_person_log">Егор Партолин</div>
+                            <div class="_post_user_history_log">Администратор Repas</div>
+                        </div>
+                    </div>
+                    <div class="_v_align">
+                        <div class="_timestamp_history_log">22 окт в 17:18</div>
+                    </div>
+                </div>
+                <div class="_body_notification_block">
+                    <div class="_text_block_notification">Заканчивается срок <a href="">лицензии Repas</a>, пожалуйста продлите её.</div>
+                </div>
+            </div>
+            <div class="_block_history_log">
+                <div class="_head_block_history_log">
+                    <div class="_v_align">
+                        <div class="_avatar_block_history_log"></div>
+                        <div class="_block_user_info_history_log">
+                            <div class="_name_person_log">Егор Партолин</div>
+                            <div class="_post_user_history_log">Администратор Repas</div>
+                        </div>
+                    </div>
+                    <div class="_v_align">
+                        <div class="_timestamp_history_log">22 окт в 17:18</div>
+                    </div>
+                </div>
+                <div class="_body_notification_block">
+                    <div class="_text_block_notification">Заканчивается срок <a href="">лицензии Repas</a>, пожалуйста продлите её.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="_setting_account_block_content">
+        <div class="_block_account_card_info">
+            <div class="_block_card_head_info">
+                <span class="_icon_svg_menu_block _icon_menu_account _icon_account_set_card"></span>
+                <div class="_info_acc_card_setting">
+                    <div class="_name_card_info_set_account">Егор Партолин</div>
+                    <div class="_descript_card_info_set_account">admin@repas.app</div>
+                </div>
+            </div>
+            <div class="_block_card_head_info _block_actions_account_menu">
+                <span class="_logout_card_card_info" title="Выйти из аккаунта"></span>
+            </div>
+        </div>
+        <a href="">
+            <div class="_link_item_menu_construct">
+                <div class="_icon_item_link_menu_cont">
+                    <div class="_icon_item_link_menu">
+                        <span class="_icon_svg_menu_block _icon_menu_setting"></span>
+                    </div>
+                </div>
+                <div class="_name_link_item_content">Настройки аккаунта</div>
+            </div>
+        </a>
+        <a href="">
+            <div class="_link_item_menu_construct">
+                <div class="_icon_item_link_menu_cont">
+                    <div class="_icon_item_link_menu">
+                        <span class="_icon_svg_menu_block _icon_menu_setting"></span>
+                    </div>
+                </div>
+                <div class="_name_link_item_content">Настройки организации</div>
+            </div>
+        </a>
+    </div>
+    <div class="_block_main_content">
+        <div class="_head_block_main_body_content">
+            <div class="_content_block_info_head_main_body _block_address_desktop_device">
+                <div class="_box_content_info_head">
+                    <div class="_name_organisation_repas_head_block">Лепрекон</div>
+                    <span class="_system_block_wty">/</span>
+                    <div class="_name_page_title_main_block">Меню и позиции</div>
+                </div>
+            </div>
+            <div class="_content_block_info_head_main_body">
+                <div class="_box_content_info_head _block_button_content">
+                    <button>Настройка организации</button>
+                    <button class="_green_button_staff">Публикация меню</button>
+                </div>
+            </div>
+        </div>
+        <div class="_block_title_info">
+            <div class="_title_main_page">Вычисления</div>
+        </div>
+        <div id="content_tab" class="_main_body_page">
+            <div class="_description_page _padding_description_in_tab">Здесь вы конструируете меню, которые видят ваши гости.</div>
+            <div class="_tabs_of_page_more_types">
+                <div class="_block_tab_more_types _action_tab_mt">Все позиции</div>
+                <div class="_block_tab_more_types">Стоп-лист</div>
+                <div class="_block_tab_more_types">Черновики</div>
+            </div>
+            <div class="_block_actions_of_page_data">
+                <div class="_filter_search_block">
+                    <input type="text" placeholder="Поиск по названиям"  autocomplete="off"  id="SearchRepas">
+                </div>
+                <div class="_button_block_action_page_data _block_button_content">
+                    <button class="_green_button_staff _add_category_to_menu _icon_button _icon_add">Добавить категорию в меню</button>
+                    <button class="_icon_button _icon_sorting _open_sorting_block">Сортировка</button>
+                    <div class="_block_sorting_fields_window">
+                        <div class="_link_sorting_block_content">
+                            <div class="_name_sort_item">По дате создания</div>
+                        </div>
+                        <div class="_link_sorting_block_content">
+                            <div class="_name_sort_item">По названию</div>
+                        </div>
+                        <div class="_link_sorting_block_content">
+                            <div class="_name_sort_item">По статусу</div>
+                        </div>
+                    </div>
+                    <button class="_icon_button _icon_filter ">Фильтр</button>
+                </div>
+            </div>
+            <div class="_table_plt_content_adaptive">
+                <table class="_sort_items_ui">
+                    <thead class="_head_table_body">
+                    <tr>
+                        <td>
+                            <label class="_checkbox_input_repas">
+                                <input type="checkbox" name="fields_block" class="_check_all">
+                                <span class="_active_checkbox_repas"></span>
+                            </label>
+                        </td>
+                        <td>Название категории</td>
+                        <td>Статус</td>
+                        <td>Кол-во позиций</td>
+                        <td>По графику</td>
+                        <td>Перемещение</td>
+                    </tr>
+                    </thead>
+                    <tbody id="BodyBlockSearch">
+                    <tr data-id="45678" data-type="position" class="_show_card_product _data_id_block">
+                        <td>
+                            <label class="_checkbox_input_repas">
+                                <input type="checkbox" name="fields_block" class="field_chc">
+                                <span class="_active_checkbox_repas"></span>
+                            </label>
+                        </td>
+                        <td class="_name_tr_header">Салаты</td>
+                        <td><span class="_status_main_menu _color_status_red">Видна всем</span></td>
+                        <td> <span class="_mobile_fields_text">Кол-во позиций: </span> 12</td>
+                        <td><span class="_mobile_fields_text">Расписание: </span> Нет</td>
+                        <td class="_sort_block_item"><span class="_icon_item_moving"></span> </td>
+                    </tr>
+                    <tr data-id="5432" data-type="category" class="_show_card_product _data_id_block">
+                        <td>
+                            <label class="_checkbox_input_repas">
+                                <input type="checkbox" name="fields_block" class="field_chc">
+                                <span class="_active_checkbox_repas"></span>
+                            </label>
+                        </td>
+                        <td class="_name_tr_header">Горячие закуски</td>
+                        <td><span class="_status_main_menu _color_status_yellow">Видна всем</span></td>
+                        <td>12</td>
+                        <td>Нет</td>
+                        <td>++</td>
+                    </tr>
+                    <tr data-id="45678" class="_show_card_product _data_id_block">
+                        <td>
+                            <label class="_checkbox_input_repas">
+                                <input type="checkbox" name="fields_block" class="field_chc">
+                                <span class="_active_checkbox_repas"></span>
+                            </label>
+                        </td>
+                        <td class="_name_tr_header">Салаты</td>
+                        <td><span class="_status_main_menu _color_status_grey">Видна всем</span></td>
+                        <td>12</td>
+                        <td>Нет</td>
+                        <td>++</td>
+                    </tr>
+                    <tr data-id="5432" class="_show_card_product _data_id_block">
+                        <td>
+                            <label class="_checkbox_input_repas">
+                                <input type="checkbox" name="fields_block" class="field_chc">
+                                <span class="_active_checkbox_repas"></span>
+                            </label>
+                        </td>
+                        <td class="_name_tr_header">Горячие закуски</td>
+                        <td><span class="_status_main_menu _color_status_green">Видна всем</span></td>
+                        <td>12</td>
+                        <td>Нет</td>
+                        <td>++</td>
+                    </tr>
+                    <tr data-id="45678"  class="_show_card_product _data_id_block">
+                        <td>
+                            <label class="_checkbox_input_repas">
+                                <input type="checkbox" name="fields_block" class="field_chc">
+                                <span class="_active_checkbox_repas"></span>
+                            </label>
+                        </td>
+                        <td class="_name_tr_header">Салаты</td>
+                        <td><span class="_status_main_menu _color_status_green">Видна всем</span></td>
+                        <td>12</td>
+                        <td>Нет</td>
+                        <td>++</td>
+                    </tr>
+                    <tr class="_none_hover _td_null_fields" >
+                        <td colspan="6" >
+                            <div class="_block_null_fields_content">
+                                <center>
+                                    <div class="_block_null_fields">
+                                        <div class="_block_null_block_title">Нет категорий в меню</div>
+                                        <div class="_block_null_block_description">Добавьте первую позицию в меню</div>
+                                        <div class="_button_block_action_page_data _block_button_content">
+                                            <button class="_green_button_staff _icon_button _icon_add _add_category_to_menu">Добавить категорию</button>
+                                            <button class="_icon_button _icon_add">Добавить позицию</button>
+                                        </div>
+                                    </div>
+                                </center>
+                            </div>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="_bottom_content_checked_menu">
+                <div class="_content_actions_fields">
+                    <div class="_title_sum_check_bm">Выбрано: <span></span> разделов</div>
+                    <div class="_block_actions_button_content_bm_check">
+                        <button class="_action_chc_button">Удалить из меню</button>
+                        <button class="_action_chc_button">Скрыть</button>
+                        <button class="_action_chc_button _button_cancel_bottom_menu">Отмена</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="_block_form_save_changes _change_sort_main_block">
+            <button class="_green_button_staff">Сохранить изменения</button>
+            <button>Отмена</button>
+        </div>
+        <div id="myfirstchart" style="height: 450px; display: block"></div>
+        <div class="_card_left_block">
+            <div class="_window_open_content_change" id="_window_open_content_change">
+            </div>
+        </div>
+
+    </div>
+</div>
+</body>
+
+<script>
+    $(document).on('click', function(event) {
+        if($('._window_open_content_change').css('right') == '0px'){
+            if(!$(event.target).closest("._show_card_product").length){
+                if(!$(event.target).closest("._window_open_content_change").length){
+                    if($(event.target).parent().attr('class') !== '_delete_variation_link_content'){
+                        handler_repas(0, 'CloseAdminCard');
+                        //console.log($(event.target));
+                    }
+                }
+            }
+        }
+        if(!$(event.target).closest("._notification_card").length){
+            if(!$(event.target).closest("._notification_block_content").length){
+                $('._notification_block_content').removeClass('_notification_active');
+            }
+        }
+        if(!$(event.target).closest("._setting_account_card").length){
+            if(!$(event.target).closest("._setting_account_block_content").length){
+                $('._setting_account_block_content').removeClass('_notification_active');
+            }
+        }
+        if(!$(event.target).closest("._open_sorting_block").length){
+            if(!$(event.target).closest("._block_sorting_fields_window").length){
+                $('._block_sorting_fields_window').hide();
+            }
+        }
+        var $searchInput = $('#SearchRepas');
+        var $searchResuts = $('#BodyBlockSearch');
+        $searchInput.on('keyup click input change',function(){
+            var value = this.value;
+            if (value.length > 0) {
+                $searchResuts.find('._show_card_product').show().filter(function() {
+                    return  $(this).find('._name_tr_header').text().toLowerCase().indexOf(value.toLowerCase()) == -1;
+                }).hide();
+            }else{
+                $searchResuts.find('._show_card_product').show();
+            }
+        });
+        var $searchInput2 = $('#SearchFieldsRepas');
+        var $searchResuts2 = $('._fields_list_repas');
+        $searchInput2.on('keyup click input change',function(){
+            var value = this.value;
+            if (value.length > 0) {
+                $searchResuts2.find('label').show().filter(function() {
+                    return  $(this).find('._title_field_box').text().toLowerCase().indexOf(value.toLowerCase()) == -1;
+                }).hide();
+            }else{
+                $searchResuts2.find('label').show();
+            }
+        });
+
+        var fixHelper = function(e, ui) {
+            ui.children().each(function() {
+                $(this).width($(this).width());
+            });
+            return ui;
+        };
+        $('._sort_items_ui tbody').sortable({
+            helper: fixHelper,
+            handle: '._sort_block_item',
+            stop: function() {
+                $('._change_sort_main_block').addClass('_active_sort_change');
+            }
+        });
+        $('._block_adds_inputs_var').sortable({
+            handle: '._sort_icon_variation',
+        });
+        $('._block_table_sort_items tbody').sortable({
+            helper: fixHelper,
+            handle: '._sort_field_handler',
+        });
+        $("._block_adds_inputs_var").disableSelection();
+        $(function() {
+            $("#" + $("#select_graph option:selected").val()).show();
+            $("#select_graph").change(function(){
+                $("._block_change_doom_sel").hide();
+                $("#" + $(this).val()).show();
+            });
+        });
+
+        $("._block_category_in_position label input[name=category_position]").on("click", function (e) {
+            //console.clear(); console.log(this.checked); // всегда true;
+            e.preventDefault();
+            setTimeout(
+                () => $(this).prop("checked", !this.checked).trigger("change")
+            );
+            /*console.log($("._block_category_in_position input[name=category_position]"));
+            $.each($("._block_category_in_position input[name=category_position]") , function(index, val) {
+                if(!$(this)[0].checked){
+                    console.log(this);
+                    $(this).closest('label').css('display', 'none');
+                }else {
+                    console.log( "SHOW >>" + this);
+                    $(this).closest('label').css('display', 'flex');
+                }
+            }); */
+        });
+    });
+</script>
+
+</html>
