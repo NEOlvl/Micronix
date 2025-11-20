@@ -1,247 +1,192 @@
-from PyQt6.QtWidgets import (
-    QMainWindow,
-    QFileDialog,
-    QLabel,
-    QVBoxLayout,
-    QWidget,
-    QPushButton,
-    QProgressBar,
-    QTableView,
-    QSplitter,
-    QHBoxLayout,
-    QStatusBar,
-)
-from PyQt6.QtGui import QAction, QStandardItemModel, QStandardItem
-from PyQt6.QtCore import QRunnable, QThreadPool, QObject, pyqtSignal, pyqtSlot, Qt
-import pyqtgraph as pg
-from micronix_core.math import compute_example
-import time
-import traceback
+import sys
+from PyQt6.QtWidgets import *
+from PyQt6.QtCore import *
+from PyQt6.QtGui import *
 
 
-class WorkerSignals(QObject):
-    finished = pyqtSignal()
-    progress = pyqtSignal(int)
-    result = pyqtSignal(object)
-    error = pyqtSignal(str)
-
-
-class Worker(QRunnable):
-    """
-    Общий воркер. fn должен вернуть результат или поднять исключение.
-    """
-
-    def __init__(self, fn, *args, **kwargs):
+class SidePanel(QFrame):
+    def __init__(self):
         super().__init__()
-        self.fn = fn
-        self.args = args
-        self.kwargs = kwargs
-        self.signals = WorkerSignals()
+        self.setFixedWidth(200)
+        self.setup_ui()
 
-    @pyqtSlot()
-    def run(self):
-        try:
-            # пример прогресса (можно удалить внутри конкретной функции)
-            self.signals.progress.emit(5)
-            result = self.fn(*self.args, **self.kwargs)
-            self.signals.progress.emit(100)
-            self.signals.result.emit(result)
-        except Exception:
-            tb = traceback.format_exc()
-            self.signals.error.emit(tb)
-        finally:
-            self.signals.finished.emit()
+    def setup_ui(self):
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+
+        # Устанавливаем градиентный фон для всей боковой панели
+        self.setStyleSheet("""
+            SidePanel {
+                background: qlineargradient(
+                    x1: 0, y1: 0, x2: 0, y2: 1,
+                    stop: 0.0 #31364a,
+                    stop: 0.2 #30303c,
+                    stop: 0.4 #2f2f39,
+                    stop: 0.6 #2e2e37,
+                    stop: 0.8 #2d2d34,
+                    stop: 1.0 #2d2c32     
+                );
+                border: none;
+            }
+        """)
+
+        # Верхняя часть с логотипом MICRONIX
+        header_widget = QWidget()
+        header_widget.setFixedHeight(120)
+        header_layout = QVBoxLayout(header_widget)
+        header_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        # Логотип MICRONIX
+        logo_label = QLabel("MICRONIX")
+        logo_label.setStyleSheet("""
+            QLabel {
+                color: white;
+                font-size: 20px;
+                font-weight: bold;
+                padding: 10px;
+                background-color: transparent;
+            }
+        """)
+        header_layout.addWidget(logo_label)
+
+        layout.addWidget(header_widget)
+
+        # Основное меню
+        menu_widget = QWidget()
+        menu_layout = QVBoxLayout(menu_widget)
+        menu_layout.setContentsMargins(0, 0, 0, 0)
+        menu_layout.setSpacing(0)
+
+        # Пункты меню (текстовые кнопки)
+        menu_items = [
+            ("Главная", True),
+            ("Измерения", False),
+            ("Отчёты", False)
+        ]
+
+        for text, is_active in menu_items:
+            menu_item = self.create_menu_item(text, is_active)
+            menu_layout.addWidget(menu_item)
+
+        layout.addWidget(menu_widget)
+
+        # Разделитель
+        separator = QFrame()
+        separator.setFrameShape(QFrame.Shape.HLine)
+        separator.setStyleSheet("background-color: rgba(255, 255, 255, 0.3); height: 1px; margin: 10px 20px;")
+        layout.addWidget(separator)
+
+        # Секция синхронизации
+        sync_widget = QWidget()
+        sync_layout = QVBoxLayout(sync_widget)
+        sync_layout.setContentsMargins(20, 15, 20, 15)
+        sync_layout.setSpacing(8)
+
+        # Заголовок синхронизации
+        sync_title = QLabel("Синхронизация")
+        sync_title.setStyleSheet("""
+            QLabel {
+                color: white;
+                font-size: 14px;
+                font-weight: bold;
+                background-color: transparent;
+            }
+        """)
+        sync_layout.addWidget(sync_title)
+
+        # Подзаголовок настроек
+        settings_label = QLabel("Настройки")
+        settings_label.setStyleSheet("""
+            QLabel {
+                color: rgba(255, 255, 255, 0.8);
+                font-size: 12px;
+                background-color: transparent;
+            }
+        """)
+        sync_layout.addWidget(settings_label)
+
+        # Пункт "Гость"
+        guest_item = self.create_menu_item("Гость", False, 10)
+        sync_layout.addWidget(guest_item)
+
+        sync_layout.addStretch()
+        layout.addWidget(sync_widget)
+
+        # Растягивающийся элемент в конце
+        layout.addStretch()
+
+    def create_menu_item(self, text, is_active=False, indent=0):
+        widget = QWidget()
+        widget.setFixedHeight(45)
+        widget.setCursor(Qt.CursorShape.PointingHandCursor)
+
+        layout = QHBoxLayout(widget)
+        layout.setContentsMargins(20 + indent, 0, 20, 0)
+
+        label = QLabel(text)
+
+        if is_active:
+            # Активный пункт меню
+            widget.setStyleSheet("""
+                background-color: rgba(255, 255, 255, 0.2); 
+                border-left: 3px solid white;
+            """)
+            label.setStyleSheet("""
+                QLabel {
+                    color: white;
+                    font-size: 14px;
+                    font-weight: bold;
+                    background-color: transparent;
+                }
+            """)
+        else:
+            # Неактивный пункт меню
+            widget.setStyleSheet("background-color: transparent;")
+            label.setStyleSheet("""
+                QLabel {
+                    color: rgba(255, 255, 255, 0.9);
+                    font-size: 14px;
+                    background-color: transparent;
+                }
+            """)
+
+        layout.addWidget(label)
+        layout.addStretch()
+
+        return widget
 
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Micronix (PyQt6) — skeleton")
-        self.resize(1000, 700)
+        self.setWindowTitle("Micronix app")
+        self.setGeometry(360, 140, 1200, 800)
 
-        # Thread pool для фоновой работы
-        self.pool = QThreadPool.globalInstance()
 
-        # Центральный виджет: Splitter (таблица | график)
-        central = QWidget()
-        self.setCentralWidget(central)
-        main_layout = QVBoxLayout()
-        central.setLayout(main_layout)
+        # Центральный виджет
+        central_widget = QWidget()
+        self.setCentralWidget(central_widget)
 
-        controls_layout = QHBoxLayout()
-        self.load_btn = QPushButton("Загрузить данные")
-        self.run_btn = QPushButton("Запустить расчёт")
-        controls_layout.addWidget(self.load_btn)
-        controls_layout.addWidget(self.run_btn)
-        main_layout.addLayout(controls_layout)
+        # Основной горизонтальный layout
+        main_layout = QHBoxLayout(central_widget)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
 
-        self.splitter = QSplitter(Qt.Orientation.Horizontal)
-        main_layout.addWidget(self.splitter)
+        # Боковая панель
+        self.side_panel = SidePanel()
+        main_layout.addWidget(self.side_panel)
 
-        # Левый: таблица
-        self.table = QTableView()
-        self.model = QStandardItemModel(0, 0)
-        self.table.setModel(self.model)
-        self.splitter.addWidget(self.table)
+        # Основная область
+        self.main_area = QFrame()
+        self.main_area.setStyleSheet("background-color: #2d2c32;")
 
-        # Правый: график (pyqtgraph)
-        self.plot_widget = pg.PlotWidget(title="График данных")
-        self.plot = self.plot_widget.plot([], [])
-        self.splitter.addWidget(self.plot_widget)
-        self.splitter.setStretchFactor(0, 1)
-        self.splitter.setStretchFactor(1, 2)
+        # Добавим содержимое в основную область
+        main_area_layout = QVBoxLayout(self.main_area)
+        main_area_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        # Статусбар и прогресс
-        self.status = QStatusBar()
-        self.setStatusBar(self.status)
-        self.progress = QProgressBar()
-        self.progress.setMaximum(100)
-        self.progress.setValue(0)
-        self.status.addPermanentWidget(self.progress)
-        self.status_label = QLabel("Готов")
-        self.status.addWidget(self.status_label)
+        content_label = QLabel("Основная рабочая область")
+        content_label.setStyleSheet("font-size: 18px; color: #ffffff;")
+        main_area_layout.addWidget(content_label)
 
-        # Меню
-        menubar = self.menuBar()
-        file_menu = menubar.addMenu("Файл")
-        load_action = QAction("Открыть...", self)
-        load_action.triggered.connect(self.on_load)
-        file_menu.addAction(load_action)
-
-        # Сигналы
-        self.load_btn.clicked.connect(self.on_load)
-        self.run_btn.clicked.connect(self.on_run)
-
-        # Хранилище данных
-        self.current_data = None  # list[list[float]] или None
-
-    def on_load(self):
-        path, _ = QFileDialog.getOpenFileName(self, "Выберите файл данных", "", "All Files (*)")
-        if not path:
-            return
-        self.status_label.setText(f"Загружаем: {path}")
-        # Запускаем чтение файла в фоне
-        worker = Worker(self._load_file, path)
-        worker.signals.progress.connect(self.progress.setValue)
-        worker.signals.result.connect(self._on_loaded)
-        worker.signals.error.connect(self._on_error)
-        worker.signals.finished.connect(lambda: self.status_label.setText("Готов"))
-        self.pool.start(worker)
-
-    def _load_file(self, path):
-        """
-        Простой парсер: пытается считать файл как таблицу чисел,
-        разделитель — пробел/таб/запятая.
-        Возвращает список строк: [[v1, v2, ...], ...]
-        """
-        data = []
-        total_lines = 0
-        # узнаем количество строк для прогресса (необязательно)
-        with open(path, "r", encoding="utf-8", errors="ignore") as f:
-            for _ in f:
-                total_lines += 1
-        if total_lines == 0:
-            return data
-        with open(path, "r", encoding="utf-8", errors="ignore") as f:
-            for i, line in enumerate(f):
-                line = line.strip()
-                if not line or line.startswith("#"):
-                    continue
-                # нормализуем разделители
-                line = line.replace(",", " ").replace("\t", " ")
-                parts = [p for p in line.split(" ") if p != ""]
-                # преобразуем в числа, если возможно
-                row = []
-                for p in parts:
-                    try:
-                        row.append(float(p))
-                    except ValueError:
-                        row.append(p)  # оставим как строку
-                data.append(row)
-                # обновление прогресса (примерно)
-                if total_lines:
-                    self.progress.setValue(int((i + 1) / total_lines * 90))
-        return data
-
-    def _on_loaded(self, data):
-        # Сохранить и отобразить
-        self.current_data = data
-        self._populate_table(data)
-        self._plot_default(data)
-        self.progress.setValue(100)
-        self.status_label.setText(f"Загружено: {len(data)} строк")
-
-    def _on_error(self, tb):
-        self.status_label.setText("Ошибка при загрузке")
-        print(tb)
-
-    def _populate_table(self, data):
-        # адаптивно установим кол-во колонок
-        cols = max((len(r) for r in data), default=0)
-        self.model = QStandardItemModel(len(data), cols)
-        for r, row in enumerate(data):
-            for c in range(cols):
-                v = row[c] if c < len(row) else ""
-                item = QStandardItem(str(v))
-                self.model.setItem(r, c, item)
-        self.table.setModel(self.model)
-        # можно дополнительно установить заголовки
-
-    def _plot_default(self, data):
-        # Если данные числовые — строим график по первой колонке
-        if not data:
-            self.plot.setData([], [])
-            return
-        # выбираем только числовые значения из колонки 0
-        xs = []
-        ys = []
-        for i, row in enumerate(data):
-            if len(row) == 0:
-                continue
-            try:
-                y = float(row[0])
-                xs.append(i)
-                ys.append(y)
-            except Exception:
-                continue
-        self.plot.setData(xs, ys, pen=pg.mkPen("b", width=1))
-        self.plot_widget.autoRange()
-
-    def on_run(self):
-        # Запуск вычислений — пример запуска compute_example на числах из первой колонки
-        if not self.current_data:
-            self.status_label.setText("Нет данных для расчёта")
-            return
-        self.status_label.setText("Вычисления...")
-        worker = Worker(self._compute_on_data, self.current_data)
-        worker.signals.progress.connect(self.progress.setValue)
-        worker.signals.result.connect(self._on_compute_result)
-        worker.signals.error.connect(self._on_error)
-        worker.signals.finished.connect(lambda: self.status_label.setText("Готов"))
-        self.pool.start(worker)
-
-    def _compute_on_data(self, data):
-        # пример: применить compute_example к каждой числовой записи первой колонки
-        results = []
-        for i, row in enumerate(data):
-            try:
-                v = float(row[0])
-            except Exception:
-                continue
-            # имитируем тяжёлую операцию
-            time.sleep(0.01)
-            results.append(compute_example(v))
-            if i % 10 == 0:
-                # отправим промежуточный прогресс
-                self.progress.setValue(int(i / max(len(data), 1) * 80))
-        return results
-
-    def _on_compute_result(self, results):
-        # показать результат: простой график
-        if not results:
-            self.status_label.setText("Результат пуст")
-            return
-        xs = list(range(len(results)))
-        self.plot.setData(xs, results, pen=pg.mkPen("r", width=1))
-        self.status_label.setText(f"Вычислено: {len(results)} значений")
-        self.progress.setValue(100)
+        main_layout.addWidget(self.main_area)

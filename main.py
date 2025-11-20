@@ -7,8 +7,11 @@ from micronix_ui.main_window import MainWindow
 
 def main():
     app = QApplication(sys.argv)
-    mw = MainWindow()
-    mw.show()
+    app.setStyle('Fusion')
+
+    window = MainWindow()
+
+    window.show()
     sys.exit(app.exec())
 
 
