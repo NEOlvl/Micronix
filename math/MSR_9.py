@@ -4,7 +4,7 @@
 
 import sys
 from math import *
-from micronix_core.math.res_x import solve_for_x_1, solve_for_x_2
+from math.res_x import solve_for_x_1, solve_for_x_2
 
 
 def res_k2():

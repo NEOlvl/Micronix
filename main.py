@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 FERRO — Complete PyQt6 port without simplifications
 Full-featured desktop version preserving all original functionality and UI complexity
