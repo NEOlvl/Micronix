@@ -12,7 +12,7 @@ from functools import partial
 from datetime import datetime
 
 from PyQt6 import QtCore, QtGui, QtWidgets
-from PyQt6.QtCore import Qt, QTimer, QPropertyAnimation, QEasingCurve
+from PyQt6.QtCore import Qt, QTimer, QPropertyAnimation, QEasingCurve, QPoint
 from PyQt6.QtGui import QPainter, QLinearGradient, QColor, QPalette, QFont, QFontDatabase
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                              QStackedWidget, QPushButton, QLabel, QFrame, QScrollArea,
@@ -108,6 +108,8 @@ class GradientBackground(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        # Устанавливаем атрибут для распространения фона на дочерние виджеты
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
 
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -127,6 +129,14 @@ class SidebarWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setFixedWidth(240)
+        self.setStyleSheet("""
+            SidebarWidget {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 rgba(40, 41, 44, 0.9),
+                    stop:1 rgba(30, 31, 34, 0.9));
+                border-right: 1px solid rgba(255, 255, 255, 0.1);
+            }
+        """)
         self.setup_ui()
 
     def setup_ui(self):
@@ -155,6 +165,7 @@ class SidebarWidget(QWidget):
                 font-size: 24px;
                 font-weight: bold;
                 font-family: 'Arial';
+                background: transparent;
             }
         """)
         header_layout.addWidget(logo)
@@ -228,6 +239,12 @@ class HeaderWidget(QWidget):
     def __init__(self, title="", subtitle="", parent=None):
         super().__init__(parent)
         self.setFixedHeight(80)
+        self.setStyleSheet("""
+            HeaderWidget {
+                background: rgba(40, 41, 44, 0.7);
+                border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            }
+        """)
         self.setup_ui(title, subtitle)
 
     def setup_ui(self, title, subtitle):
@@ -244,6 +261,7 @@ class HeaderWidget(QWidget):
                 color: white;
                 font-size: 24px;
                 font-weight: 600;
+                background: transparent;
             }
         """)
 
@@ -253,6 +271,7 @@ class HeaderWidget(QWidget):
                 color: rgba(255, 255, 255, 0.6);
                 font-size: 14px;
                 font-weight: 400;
+                background: transparent;
             }
         """)
 
@@ -290,6 +309,8 @@ class MethodCard(ModernCard):
         super().__init__(parent)
         self.method_num = method_num
         self.setup_ui(method_num, method_name, description, image_style)
+        # Делаем карточку кликабельной
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
 
     def setup_ui(self, method_num, method_name, description, image_style):
         layout = QVBoxLayout(self)
@@ -303,6 +324,7 @@ class MethodCard(ModernCard):
                 color: white;
                 font-size: 16px;
                 font-weight: 600;
+                background: transparent;
             }
         """)
 
@@ -313,6 +335,7 @@ class MethodCard(ModernCard):
                 color: rgba(255, 255, 255, 0.7);
                 font-size: 14px;
                 font-weight: 400;
+                background: transparent;
             }
         """)
         method_desc.setWordWrap(True)
@@ -320,9 +343,8 @@ class MethodCard(ModernCard):
         layout.addWidget(method_header)
         layout.addWidget(method_desc)
 
-        self.setCursor(Qt.CursorShape.PointingHandCursor)
-
     def mousePressEvent(self, event):
+        """При клике на карточку"""
         self.setStyleSheet("""
             ModernCard {
                 background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
@@ -332,6 +354,15 @@ class MethodCard(ModernCard):
                 border-radius: 12px;
             }
         """)
+
+        # Получаем доступ к главному окну через цепочку родителей
+        parent_widget = self.parent()
+        while parent_widget and not isinstance(parent_widget, FERROMainWindow):
+            parent_widget = parent_widget.parent()
+
+        if parent_widget and hasattr(parent_widget, 'show_method_panel'):
+            parent_widget.show_method_panel(self.method_num)
+
         super().mousePressEvent(event)
 
     def enterEvent(self, event):
@@ -359,6 +390,656 @@ class MethodCard(ModernCard):
         super().leaveEvent(event)
 
 
+class SlideInPanel(QWidget):
+    """Slide-in panel for method selection and parameters"""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.parent_widget = parent
+        self.backend = parent.backend
+        self.setup_ui()
+        self.hide()
+
+    def setup_ui(self):
+        # Создаем оверлейный виджет для затемнения фона
+        self.overlay = QWidget(self.parent_widget)
+        self.overlay.setStyleSheet("background: rgba(0, 0, 0, 0.5);")
+        self.overlay.hide()
+
+        # Размещаем панель за правым краем окна
+        self.setFixedWidth(800)
+        self.setStyleSheet("""
+            SlideInPanel {
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #222326, stop:1 #191a1d);
+                border-left: 1px solid rgba(255, 255, 255, 0.1);
+            }
+        """)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+
+        # Header панели
+        header = QWidget()
+        header.setFixedHeight(60)
+        header.setStyleSheet("""
+            QWidget {
+                background: rgba(255, 255, 255, 0.05);
+                border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            }
+        """)
+        header_layout = QHBoxLayout(header)
+        header_layout.setContentsMargins(20, 0, 20, 0)
+
+        # Заголовок и кнопка закрытия
+        title_layout = QHBoxLayout()
+        title_layout.setSpacing(8)
+
+        self.breadcrumb = QLabel("Бином / новое исследование")
+        self.breadcrumb.setStyleSheet("color: white; font-size: 16px; font-weight: 600; background: transparent;")
+
+        self.close_btn = QPushButton("×")
+        self.close_btn.setFixedSize(30, 30)
+        self.close_btn.setStyleSheet("""
+            QPushButton {
+                color: white;
+                background: transparent;
+                border: none;
+                font-size: 20px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background: rgba(255, 255, 255, 0.1);
+                border-radius: 4px;
+            }
+        """)
+        self.close_btn.clicked.connect(self.hide_panel)
+
+        header_layout.addWidget(self.breadcrumb)
+        header_layout.addStretch()
+        header_layout.addWidget(self.close_btn)
+
+        layout.addWidget(header)
+
+        # Контентная область с прокруткой
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setStyleSheet("""
+            QScrollArea {
+                border: none;
+                background: transparent;
+            }
+            QScrollBar:vertical {
+                background: rgba(255, 255, 255, 0.05);
+                width: 10px;
+                border-radius: 5px;
+            }
+            QScrollBar::handle:vertical {
+                background: rgba(255, 255, 255, 0.2);
+                border-radius: 5px;
+            }
+        """)
+
+        self.content_widget = QWidget()
+        self.content_layout = QVBoxLayout(self.content_widget)
+        self.content_layout.setContentsMargins(20, 20, 20, 20)
+        self.content_layout.setSpacing(20)
+
+        scroll_area.setWidget(self.content_widget)
+        layout.addWidget(scroll_area)
+
+        # Footer с кнопками
+        footer = QWidget()
+        footer.setFixedHeight(80)
+        footer.setStyleSheet("background: rgba(255, 255, 255, 0.05);")
+        footer_layout = QHBoxLayout(footer)
+        footer_layout.setContentsMargins(20, 0, 20, 0)
+
+        footer_layout.addStretch()
+
+        self.clear_btn = QPushButton("Очистить всё")
+        self.clear_btn.setStyleSheet("""
+            QPushButton {
+                color: white;
+                background: rgba(255, 255, 255, 0.1);
+                border: none;
+                padding: 10px 20px;
+                border-radius: 6px;
+            }
+            QPushButton:hover {
+                background: rgba(255, 255, 255, 0.15);
+            }
+        """)
+
+        self.cancel_btn = QPushButton("Отмена")
+        self.cancel_btn.setStyleSheet("""
+            QPushButton {
+                color: white;
+                background: rgba(255, 255, 255, 0.1);
+                border: none;
+                padding: 10px 20px;
+                border-radius: 6px;
+            }
+            QPushButton:hover {
+                background: rgba(255, 255, 255, 0.15);
+            }
+        """)
+        self.cancel_btn.clicked.connect(self.hide_panel)
+
+        self.create_btn = AnimatedButton("Начать исследование")
+        self.create_btn.setStyleSheet("""
+            QPushButton {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #7879F1, stop:1 #9A9BFF);
+                color: white;
+                border: none;
+                padding: 10px 24px;
+                border-radius: 6px;
+                font-weight: 600;
+            }
+            QPushButton:hover {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #6A6BE1, stop:1 #8A8BEF);
+            }
+        """)
+        self.create_btn.clicked.connect(self.create_measurement)
+
+        footer_layout.addWidget(self.clear_btn)
+        footer_layout.addWidget(self.cancel_btn)
+        footer_layout.addWidget(self.create_btn)
+
+        layout.addWidget(footer)
+
+        # Анимация
+        self.animation = QPropertyAnimation(self, b"pos")
+        self.animation.setDuration(300)
+        self.animation.setEasingCurve(QEasingCurve.Type.OutCubic)
+
+    def show_panel(self, method_id=1):
+        """Показать панель с выбранным методом"""
+        # Показываем оверлей
+        self.overlay.setGeometry(0, 0, self.parent_widget.width(), self.parent_widget.height())
+        self.overlay.show()
+        self.overlay.raise_()
+
+        # Очищаем контент
+        for i in reversed(range(self.content_layout.count())):
+            item = self.content_layout.itemAt(i)
+            if item.widget():
+                item.widget().deleteLater()
+
+        # Сохраняем текущий метод
+        self.current_method_id = method_id
+
+        # Добавляем контент метода
+        self.add_method_content(method_id)
+
+        # Устанавливаем фиксированный размер и позицию
+        parent_width = self.parent_widget.width()
+        parent_height = self.parent_widget.height()
+
+        self.setFixedSize(800, parent_height)
+
+        # Позиционируем за правым краем
+        self.move(parent_width, 0)
+
+        # Показываем
+        self.show()
+        self.raise_()  # Поднимаем наверх
+
+        # Анимация выезда
+        self.animation.setStartValue(self.pos())
+        self.animation.setEndValue(QPoint(
+            parent_width - self.width(),
+            0
+        ))
+        self.animation.start()
+
+    def hide_panel(self):
+        """Скрыть панель с анимацией"""
+        self.animation.setStartValue(self.pos())
+        self.animation.setEndValue(QPoint(
+            self.parent_widget.width(),
+            0
+        ))
+        self.animation.finished.connect(self.on_animation_finished)
+        self.animation.start()
+
+    def on_animation_finished(self):
+        """Действия после завершения анимации"""
+        self.hide()
+        self.overlay.hide()
+
+    def add_method_content(self, method_id):
+        """Добавить контент для выбранного метода"""
+        # Метод выбора
+        method_section = ModernCard()
+        method_layout = QVBoxLayout(method_section)
+        method_layout.setContentsMargins(20, 20, 20, 20)
+
+        section_title = QLabel("Метод исследования")
+        section_title.setStyleSheet("color: white; font-size: 18px; font-weight: 600; background: transparent;")
+        method_layout.addWidget(section_title)
+
+        # Карточки методов
+        methods_layout = QHBoxLayout()
+        methods_layout.setSpacing(16)
+
+        methods = [
+            (1, "ФРЧ", "Метод фиксированной частоты"),
+            (2, "ФРД", "Метод фиксированной длины"),
+            (3, "СО", "Метод для стержневых образцов"),
+            (4, "СВЧФ", "Метод для СВЧ ферритов")
+        ]
+
+        self.method_cards = []
+        for m_id, m_name, m_desc in methods:
+            card = MethodCard(m_id, m_name, m_desc)
+            if m_id == method_id:
+                card.setStyleSheet("""
+                    ModernCard {
+                        background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                            stop:0 rgba(120, 121, 241, 0.2),
+                            stop:1 rgba(120, 121, 241, 0.1));
+                        border: 1px solid rgba(120, 121, 241, 0.3);
+                        border-radius: 12px;
+                    }
+                """)
+            card.mousePressEvent = lambda event, mid=m_id: self.select_method(mid)
+            methods_layout.addWidget(card)
+            self.method_cards.append(card)
+
+        method_layout.addLayout(methods_layout)
+        self.content_layout.addWidget(method_section)
+
+        # Параметры метода
+        self.add_method_parameters(method_id)
+
+    def add_method_parameters(self, method_id):
+        """Добавить параметры для выбранного метода"""
+        param_section = ModernCard()
+        param_layout = QVBoxLayout(param_section)
+        param_layout.setContentsMargins(20, 20, 20, 20)
+
+        section_title = QLabel(f"Данные для исследования #{method_id}")
+        section_title.setStyleSheet("color: white; font-size: 18px; font-weight: 600; background: transparent;")
+        param_layout.addWidget(section_title)
+
+        # Создаем форму для параметров
+        self.create_parameter_form(method_id, param_layout)
+
+        self.content_layout.addWidget(param_section)
+
+    def create_parameter_form(self, method_id, parent_layout):
+        """Создать форму параметров для метода"""
+        form_layout = QFormLayout()
+        form_layout.setVerticalSpacing(12)
+        form_layout.setHorizontalSpacing(20)
+
+        if method_id == 1:
+            self.t_input = QLineEdit()
+            self.delL_input = QLineEdit()
+            self.n_input = QSpinBox()
+            self.n_input.setValue(1)
+
+            form_layout.addRow("Толщина образца, мм:", self.t_input)
+            form_layout.addRow("Перемещение поршня, мм:", self.delL_input)
+            form_layout.addRow("Кол-во измерений:", self.n_input)
+
+            # Дополнительные параметры
+            details_group = QGroupBox("Дополнительные параметры исследования")
+            details_group.setStyleSheet("""
+                QGroupBox {
+                    color: white;
+                    font-size: 14px;
+                    font-weight: 600;
+                    border: 1px solid rgba(255, 255, 255, 0.2);
+                    border-radius: 6px;
+                    margin-top: 12px;
+                    padding-top: 8px;
+                    background: transparent;
+                }
+                QGroupBox::title {
+                    subcontrol-origin: margin;
+                    left: 10px;
+                    padding: 0 8px;
+                }
+            """)
+
+            details_layout = QFormLayout(details_group)
+
+            self.index_combo = QComboBox()
+            self.index_combo.addItems(["2", "3", "4", "5"])
+            self.index_combo.setCurrentText("2")
+
+            self.d_res_input = QLineEdit()
+            self.d_res_input.setText("50")
+            self.d_res_input.setReadOnly(True)
+
+            self.h_res_input = QLineEdit()
+            self.h_res_input.setText("90")
+
+            details_layout.addRow("Продольный индекс колебаний:", self.index_combo)
+            details_layout.addRow("Диаметр резонатора, мм:", self.d_res_input)
+            details_layout.addRow("Высота резонатора, мм:", self.h_res_input)
+
+            parent_layout.addLayout(form_layout)
+            parent_layout.addWidget(details_group)
+
+        elif method_id == 2:
+            self.t_input = QLineEdit()
+            self.n_input = QSpinBox()
+            self.n_input.setValue(1)
+
+            form_layout.addRow("Толщина образца, мм:", self.t_input)
+            form_layout.addRow("Кол-во измерений:", self.n_input)
+
+            # Дополнительные параметры
+            details_group = QGroupBox("Дополнительные параметры исследования")
+            details_group.setStyleSheet("""
+                QGroupBox {
+                    color: white;
+                    font-size: 14px;
+                    font-weight: 600;
+                    border: 1px solid rgba(255, 255, 255, 0.2);
+                    border-radius: 6px;
+                    margin-top: 12px;
+                    padding-top: 8px;
+                    background: transparent;
+                }
+                QGroupBox::title {
+                    subcontrol-origin: margin;
+                    left: 10px;
+                    padding: 0 8px;
+                }
+            """)
+
+            details_layout = QFormLayout(details_group)
+
+            self.index_combo = QComboBox()
+            self.index_combo.addItems(["2", "3", "4", "5"])
+            self.index_combo.setCurrentText("2")
+
+            self.d_res_input = QLineEdit()
+            self.d_res_input.setText("45")
+            self.d_res_input.setReadOnly(True)
+
+            self.h_res_input = QLineEdit()
+            self.h_res_input.setText("45")
+
+            details_layout.addRow("Продольный индекс колебаний:", self.index_combo)
+            details_layout.addRow("Диаметр резонатора, мм:", self.d_res_input)
+            details_layout.addRow("Высота резонатора, мм:", self.h_res_input)
+
+            parent_layout.addLayout(form_layout)
+            parent_layout.addWidget(details_group)
+
+        elif method_id == 3:
+            self.d_input = QLineEdit()
+            self.n_input = QSpinBox()
+            self.n_input.setValue(1)
+
+            form_layout.addRow("Радиус образца, мм:", self.d_input)
+            form_layout.addRow("Кол-во измерений:", self.n_input)
+
+            # Дополнительные параметры
+            details_group = QGroupBox("Дополнительные параметры исследования")
+            details_group.setStyleSheet("""
+                QGroupBox {
+                    color: white;
+                    font-size: 14px;
+                    font-weight: 600;
+                    border: 1px solid rgba(255, 255, 255, 0.2);
+                    border-radius: 6px;
+                    margin-top: 12px;
+                    padding-top: 8px;
+                    background: transparent;
+                }
+                QGroupBox::title {
+                    subcontrol-origin: margin;
+                    left: 10px;
+                    padding: 0 8px;
+                }
+            """)
+
+            details_layout = QFormLayout(details_group)
+
+            self.index_combo = QComboBox()
+            self.index_combo.addItems(["1", "2", "3"])
+            self.index_combo.setCurrentText("1")
+
+            self.d_res_input = QLineEdit()
+            self.d_res_input.setText("22.5")
+            self.d_res_input.setReadOnly(True)
+
+            self.h_res_input = QLineEdit()
+            self.h_res_input.setText("45")
+
+            details_layout.addRow("Продольный индекс колебаний:", self.index_combo)
+            details_layout.addRow("Радиус резонатора, мм:", self.d_res_input)
+            details_layout.addRow("Высота резонатора, мм:", self.h_res_input)
+
+            parent_layout.addLayout(form_layout)
+            parent_layout.addWidget(details_group)
+
+        elif method_id == 4:
+            self.form_combo = QComboBox()
+            self.form_combo.addItems(["Стержень", "Квадратная"])
+            self.mp_input = QLineEdit()
+            self.ism_input = QSpinBox()
+            self.ism_input.setValue(1)
+
+            form_layout.addRow("Форма образца:", self.form_combo)
+            form_layout.addRow("Поперечная составляющая МП:", self.mp_input)
+            form_layout.addRow("Кол-во измерений:", self.ism_input)
+
+            # Дополнительные параметры
+            details_group = QGroupBox("Дополнительные параметры исследования")
+            details_group.setStyleSheet("""
+                QGroupBox {
+                    color: white;
+                    font-size: 14px;
+                    font-weight: 600;
+                    border: 1px solid rgba(255, 255, 255, 0.2);
+                    border-radius: 6px;
+                    margin-top: 12px;
+                    padding-top: 8px;
+                    background: transparent;
+                }
+                QGroupBox::title {
+                    subcontrol-origin: margin;
+                    left: 10px;
+                    padding: 0 8px;
+                }
+            """)
+
+            details_layout = QFormLayout(details_group)
+
+            self.d_res_input = QLineEdit()
+            self.d_res_input.setText("11")
+
+            self.d_sample_input = QLineEdit()
+            self.d_sample_input.setText("0.81")
+
+            details_layout.addRow("Радиус резонатора:", self.d_res_input)
+            details_layout.addRow("Радиус образца:", self.d_sample_input)
+
+            parent_layout.addLayout(form_layout)
+            parent_layout.addWidget(details_group)
+
+        # Стилизация полей формы
+        for i in range(form_layout.rowCount()):
+            label = form_layout.itemAt(i, QFormLayout.ItemRole.LabelRole).widget()
+            if label:
+                label.setStyleSheet("color: rgba(255, 255, 255, 0.8); font-size: 14px; background: transparent;")
+
+            field = form_layout.itemAt(i, QFormLayout.ItemRole.FieldRole).widget()
+            if field:
+                if isinstance(field, QLineEdit):
+                    field.setStyleSheet("""
+                        QLineEdit {
+                            background: rgba(255, 255, 255, 0.1);
+                            border: 1px solid rgba(255, 255, 255, 0.2);
+                            border-radius: 6px;
+                            padding: 8px 12px;
+                            color: white;
+                            font-size: 14px;
+                        }
+                        QLineEdit:focus {
+                            border: 1px solid rgba(120, 121, 241, 0.6);
+                        }
+                    """)
+                elif isinstance(field, QSpinBox):
+                    field.setStyleSheet("""
+                        QSpinBox {
+                            background: rgba(255, 255, 255, 0.1);
+                            border: 1px solid rgba(255, 255, 255, 0.2);
+                            border-radius: 6px;
+                            padding: 8px 12px;
+                            color: white;
+                            font-size: 14px;
+                        }
+                        QSpinBox:focus {
+                            border: 1px solid rgba(120, 121, 241, 0.6);
+                        }
+                    """)
+                elif isinstance(field, QComboBox):
+                    field.setStyleSheet("""
+                        QComboBox {
+                            background: rgba(255, 255, 255, 0.1);
+                            border: 1px solid rgba(255, 255, 255, 0.2);
+                            border-radius: 6px;
+                            padding: 8px 12px;
+                            color: white;
+                            font-size: 14px;
+                        }
+                        QComboBox:focus {
+                            border: 1px solid rgba(120, 121, 241, 0.6);
+                        }
+                        QComboBox::drop-down {
+                            border: none;
+                        }
+                        QComboBox::down-arrow {
+                            image: none;
+                            border-left: 5px solid transparent;
+                            border-right: 5px solid transparent;
+                            border-top: 5px solid white;
+                        }
+                    """)
+
+        # Стилизация полей в details_layout
+        if hasattr(self, 'index_combo'):
+            for i in range(details_layout.rowCount()):
+                label = details_layout.itemAt(i, QFormLayout.ItemRole.LabelRole).widget()
+                if label:
+                    label.setStyleSheet("color: rgba(255, 255, 255, 0.8); font-size: 13px; background: transparent;")
+
+                field = details_layout.itemAt(i, QFormLayout.ItemRole.FieldRole).widget()
+                if field:
+                    field.setStyleSheet("""
+                        QLineEdit, QComboBox {
+                            background: rgba(255, 255, 255, 0.1);
+                            border: 1px solid rgba(255, 255, 255, 0.2);
+                            border-radius: 4px;
+                            padding: 6px 10px;
+                            color: white;
+                            font-size: 13px;
+                        }
+                    """)
+
+    def select_method(self, method_id):
+        """Выбрать другой метод"""
+        # Обновляем подсветку карточек
+        for card in self.method_cards:
+            if card.method_num == method_id:
+                card.setStyleSheet("""
+                    ModernCard {
+                        background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                            stop:0 rgba(120, 121, 241, 0.2),
+                            stop:1 rgba(120, 121, 241, 0.1));
+                        border: 1px solid rgba(120, 121, 241, 0.3);
+                        border-radius: 12px;
+                    }
+                """)
+            else:
+                card.setStyleSheet("""
+                    ModernCard {
+                        background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                            stop:0 rgba(255, 255, 255, 0.1),
+                            stop:1 rgba(255, 255, 255, 0.05));
+                        border: 1px solid rgba(255, 255, 255, 0.1);
+                        border-radius: 12px;
+                    }
+                """)
+
+        # Обновляем параметры
+        for i in reversed(range(self.content_layout.count())):
+            if i > 0:  # Пропускаем секцию с выбором метода
+                item = self.content_layout.itemAt(i)
+                if item.widget():
+                    item.widget().deleteLater()
+
+        self.current_method_id = method_id
+        self.add_method_parameters(method_id)
+
+    def create_measurement(self):
+        """Create new measurement from panel data"""
+        # Собираем данные из формы
+        method_id = self.current_method_id
+        data_obj = {
+            "method": method_id,
+            "data": {
+                str(method_id): {}
+            }
+        }
+
+        if method_id == 1:
+            data_obj["data"][str(method_id)] = {
+                "t": self.t_input.text(),
+                "del_L": self.delL_input.text(),
+                "n": self.n_input.value(),
+                "index": self.index_combo.currentText(),
+                "d_res": self.d_res_input.text(),
+                "h_res": self.h_res_input.text()
+            }
+        elif method_id == 2:
+            data_obj["data"][str(method_id)] = {
+                "t": self.t_input.text(),
+                "n": self.n_input.value(),
+                "index": self.index_combo.currentText(),
+                "d_res": self.d_res_input.text(),
+                "h_res": self.h_res_input.text()
+            }
+        elif method_id == 3:
+            data_obj["data"][str(method_id)] = {
+                "d": self.d_input.text(),
+                "n": self.n_input.value(),
+                "index": self.index_combo.currentText(),
+                "d_res": self.d_res_input.text(),
+                "h_res": self.h_res_input.text()
+            }
+        elif method_id == 4:
+            form_value = "1" if self.form_combo.currentText() == "Стержень" else "0"
+            data_obj["data"][str(method_id)] = {
+                "form": form_value,
+                "mp": self.mp_input.text(),
+                "ism": self.ism_input.value(),
+                "d_res": self.d_res_input.text(),
+                "d_sample": self.d_sample_input.text()
+            }
+
+        # Call backend
+        response = self.backend.ferro_query("new_create", data_obj)
+
+        # Скрываем панель
+        self.hide_panel()
+
+        # Start measurement process
+        self.measurement_process = MeasurementProcessDialog(self.backend, response['id'], self.parent_widget)
+        self.measurement_process.show()
+
+
 class MeasurementGraphWidget(QWidget):
     """Interactive measurement graph widget"""
 
@@ -374,23 +1055,30 @@ class MeasurementGraphWidget(QWidget):
         self.plot_widget = pg.PlotWidget(background=None)
         self.plot_widget.setAntialiasing(True)
 
-        # Style the plot
-        self.plot_widget.getPlotItem().showGrid(x=True, y=True, alpha=0.3)
-        self.plot_widget.getPlotItem().getViewBox().setBorder(None)
+        # Установка темного фона для всего графика
+        self.plot_widget.setBackground('#1a1b1e')  # Темный фон
 
-        # Style axes
+        # Стиль осей
         styles = {'color': 'white', 'font-size': '12px'}
         self.plot_widget.setLabel('left', 'ДцБ', **styles)
         self.plot_widget.setLabel('bottom', 'Частота, ГГц', **styles)
 
-        # Set axis pens
-        axis_pen = pg.mkPen(color=(255, 255, 255, 100), width=1)
-        self.plot_widget.getAxis('left').setPen(axis_pen)
-        self.plot_widget.getAxis('bottom').setPen(axis_pen)
+        # Цвет линий сетки
+        self.plot_widget.showGrid(x=True, y=True, alpha=0.3)
+        self.plot_widget.getPlotItem().getAxis('left').setPen(pg.mkPen(color=(255, 255, 255, 100)))
+        self.plot_widget.getPlotItem().getAxis('bottom').setPen(pg.mkPen(color=(255, 255, 255, 100)))
 
-        # Set text color for axes
-        self.plot_widget.getAxis('left').setTextPen('white')
-        self.plot_widget.getAxis('bottom').setTextPen('white')
+        # Цвет текста на осях
+        self.plot_widget.getPlotItem().getAxis('left').setTextPen('white')
+        self.plot_widget.getPlotItem().getAxis('bottom').setTextPen('white')
+
+        # Убираем рамку
+        self.plot_widget.getPlotItem().getViewBox().setBorder(None)
+
+        # Цвет линий сетки
+        grid_pen = pg.mkPen(color=(255, 255, 255, 50), width=0.5)
+        self.plot_widget.getPlotItem().getAxis('left').setGrid(255)
+        self.plot_widget.getPlotItem().getAxis('bottom').setGrid(255)
 
         layout.addWidget(self.plot_widget)
 
@@ -415,28 +1103,37 @@ class ResultsTableWidget(QTableWidget):
         # Style the table
         self.setStyleSheet("""
             QTableWidget {
-                background: rgba(255, 255, 255, 0.05);
+                background: rgba(30, 31, 34, 0.9);
+                color: white;
                 border: 1px solid rgba(255, 255, 255, 0.1);
                 border-radius: 8px;
                 gridline-color: rgba(255, 255, 255, 0.1);
-                color: white;
                 font-size: 13px;
+                alternate-background-color: rgba(255, 255, 255, 0.05);
             }
             QTableWidget::item {
                 padding: 8px;
                 border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+                background: transparent;
             }
             QTableWidget::item:selected {
                 background: rgba(120, 121, 241, 0.3);
             }
             QHeaderView::section {
-                background: rgba(255, 255, 255, 0.1);
+                background: rgba(40, 41, 44, 0.8);
                 color: white;
                 padding: 8px;
                 border: none;
+                border-right: 1px solid rgba(255, 255, 255, 0.1);
                 font-weight: 600;
             }
+            QHeaderView::section:last {
+                border-right: none;
+            }
         """)
+
+        # Включить чередование строк
+        self.setAlternatingRowColors(True)
 
         # Configure header
         header = self.horizontalHeader()
@@ -458,14 +1155,14 @@ class HomePage(QWidget):
         layout.setContentsMargins(30, 20, 30, 20)
         layout.setSpacing(20)
 
-        # Header - СОХРАНЯЕМ как атрибут класса
+        # Header
         self.header = HeaderWidget("Главная", "Начать исследование", self)
         self.header.new_measure_btn.hide()  # Hide new measure button on home
         layout.addWidget(self.header)
 
         # Method selection section
         methods_label = QLabel("Выберите метод исследования:")
-        methods_label.setStyleSheet("color: white; font-size: 16px; font-weight: 600;")
+        methods_label.setStyleSheet("color: white; font-size: 16px; font-weight: 600; background: transparent;")
         layout.addWidget(methods_label)
 
         # Method cards grid
@@ -481,7 +1178,6 @@ class HomePage(QWidget):
 
         for method_num, method_name, description, image_style in methods:
             card = MethodCard(method_num, method_name, description, image_style)
-            card.mousePressEvent = partial(self.on_method_selected, method_num)
             methods_grid.addWidget(card)
 
         layout.addLayout(methods_grid)
@@ -492,7 +1188,7 @@ class HomePage(QWidget):
 
         recent_header = QHBoxLayout()
         recent_label = QLabel("Последние исследования")
-        recent_label.setStyleSheet("color: white; font-size: 16px; font-weight: 600;")
+        recent_label.setStyleSheet("color: white; font-size: 16px; font-weight: 600; background: transparent;")
         recent_header.addWidget(recent_label)
         recent_header.addStretch()
 
@@ -544,11 +1240,11 @@ class HomePage(QWidget):
         # Load recent measurements
         self.load_recent_measurements()
 
-    def on_method_selected(self, method_id, event):
-        """Handle method selection"""
-        dialog = CreateMeasurementDialog(self.backend, method_id, self)
-        if dialog.exec() == QDialog.DialogCode.Accepted:
-            self.load_recent_measurements()
+    def show_method_panel(self, method_id):
+        """Show slide panel with selected method"""
+        main_window = self.parent().parent()
+        if hasattr(main_window, 'slide_panel'):
+            main_window.slide_panel.show_panel(method_id)
 
     def load_recent_measurements(self):
         """Load and display recent measurements"""
@@ -564,7 +1260,8 @@ class HomePage(QWidget):
         if not measures:
             # Show empty state
             empty_label = QLabel("Пока нет проведенных исследований")
-            empty_label.setStyleSheet("color: rgba(255, 255, 255, 0.5); text-align: center; padding: 40px;")
+            empty_label.setStyleSheet(
+                "color: rgba(255, 255, 255, 0.5); text-align: center; padding: 40px; background: transparent;")
             empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             self.recent_layout.addWidget(empty_label)
             return
@@ -586,10 +1283,12 @@ class HomePage(QWidget):
         graph_widget.setFixedSize(200, 80)
         graph_widget.setMouseEnabled(x=False, y=False)
         graph_widget.hideButtons()
+        graph_widget.setBackground('#1a1b1e')  # Темный фон для мини-графиков
 
         # Hide axes for mini graph
         graph_widget.getPlotItem().hideAxis('left')
         graph_widget.getPlotItem().hideAxis('bottom')
+        graph_widget.getPlotItem().getViewBox().setBorder(None)
 
         # Plot data
         x_data = np.array(measure['x'])
@@ -609,17 +1308,17 @@ class HomePage(QWidget):
         info_layout.setSpacing(8)
 
         title = QLabel(f"Исследование #{measure['title']}")
-        title.setStyleSheet("color: white; font-size: 16px; font-weight: 600;")
+        title.setStyleSheet("color: white; font-size: 16px; font-weight: 600; background: transparent;")
 
         time_label = QLabel(measure['time'])
-        time_label.setStyleSheet("color: rgba(255, 255, 255, 0.6); font-size: 13px;")
+        time_label.setStyleSheet("color: rgba(255, 255, 255, 0.6); font-size: 13px; background: transparent;")
 
         # Sample info if available
         sample_info = QLabel("")
         if measure['y_samples']:
             sample = list(measure['y_samples'].values())[0]
             sample_info.setText(f"Образец: {sample['name']}")
-            sample_info.setStyleSheet("color: rgba(255, 255, 255, 0.7); font-size: 13px;")
+            sample_info.setStyleSheet("color: rgba(255, 255, 255, 0.7); font-size: 13px; background: transparent;")
 
         info_layout.addWidget(title)
         info_layout.addWidget(time_label)
@@ -630,410 +1329,13 @@ class HomePage(QWidget):
 
         # Make card clickable
         card.setCursor(Qt.CursorShape.PointingHandCursor)
-        card.mousePressEvent = partial(self.open_measurement, measure['id_m'])
+        card.mousePressEvent = lambda event, mid=measure['id_m']: self.open_measurement(mid, event)
 
         return card
 
     def open_measurement(self, measure_id, event):
         """Open measurement details"""
         self.open_measure_callback(measure_id)
-
-
-class CreateMeasurementDialog(QDialog):
-    """Dialog for creating new measurement"""
-
-    def __init__(self, backend, method_id, parent=None):
-        super().__init__(parent)
-        self.backend = backend
-        self.method_id = method_id
-        self.setup_ui()
-
-    def setup_ui(self):
-        self.setWindowTitle("Новое исследование")
-        self.setModal(True)
-        self.setFixedSize(800, 600)
-
-        layout = QVBoxLayout(self)
-        layout.setSpacing(0)
-
-        # Header
-        header = QWidget()
-        header.setFixedHeight(60)
-        header.setStyleSheet("background: rgba(255, 255, 255, 0.05);")
-        header_layout = QHBoxLayout(header)
-        header_layout.setContentsMargins(20, 0, 20, 0)
-
-        title = QLabel("Бином / новое исследование")
-        title.setStyleSheet("color: white; font-size: 16px; font-weight: 600;")
-        header_layout.addWidget(title)
-        header_layout.addStretch()
-
-        close_btn = QPushButton("×")
-        close_btn.setFixedSize(30, 30)
-        close_btn.setStyleSheet("""
-            QPushButton {
-                color: white;
-                background: transparent;
-                border: none;
-                font-size: 20px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background: rgba(255, 255, 255, 0.1);
-                border-radius: 4px;
-            }
-        """)
-        close_btn.clicked.connect(self.reject)
-        header_layout.addWidget(close_btn)
-
-        layout.addWidget(header)
-
-        # Content
-        content = QScrollArea()
-        content.setWidgetResizable(True)
-        content.setStyleSheet("QScrollArea { border: none; background: transparent; }")
-
-        content_widget = QWidget()
-        self.content_layout = QVBoxLayout(content_widget)
-        self.content_layout.setContentsMargins(20, 20, 20, 20)
-        self.content_layout.setSpacing(20)
-
-        self.setup_method_content()
-        content.setWidget(content_widget)
-        layout.addWidget(content, 1)
-
-        # Footer buttons
-        footer = QWidget()
-        footer.setFixedHeight(80)
-        footer.setStyleSheet("background: rgba(255, 255, 255, 0.05);")
-        footer_layout = QHBoxLayout(footer)
-        footer_layout.setContentsMargins(20, 0, 20, 0)
-
-        footer_layout.addStretch()
-
-        clear_btn = QPushButton("Очистить всё")
-        clear_btn.setStyleSheet("""
-            QPushButton {
-                color: white;
-                background: rgba(255, 255, 255, 0.1);
-                border: none;
-                padding: 10px 20px;
-                border-radius: 6px;
-            }
-            QPushButton:hover {
-                background: rgba(255, 255, 255, 0.15);
-            }
-        """)
-
-        cancel_btn = QPushButton("Отмена")
-        cancel_btn.setStyleSheet("""
-            QPushButton {
-                color: white;
-                background: rgba(255, 255, 255, 0.1);
-                border: none;
-                padding: 10px 20px;
-                border-radius: 6px;
-            }
-            QPushButton:hover {
-                background: rgba(255, 255, 255, 0.15);
-            }
-        """)
-        cancel_btn.clicked.connect(self.reject)
-
-        create_btn = AnimatedButton("Начать исследование")
-        create_btn.setStyleSheet("""
-            QPushButton {
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                    stop:0 #7879F1, stop:1 #9A9BFF);
-                color: white;
-                border: none;
-                padding: 10px 24px;
-                border-radius: 6px;
-                font-weight: 600;
-            }
-            QPushButton:hover {
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                    stop:0 #6A6BE1, stop:1 #8A8BEF);
-            }
-        """)
-        create_btn.clicked.connect(self.create_measurement)
-
-        footer_layout.addWidget(clear_btn)
-        footer_layout.addWidget(cancel_btn)
-        footer_layout.addWidget(create_btn)
-
-        layout.addWidget(footer)
-
-    def setup_method_content(self):
-        """Setup method-specific content"""
-        # Method selection
-        method_section = ModernCard()
-        method_layout = QVBoxLayout(method_section)
-        method_layout.setContentsMargins(20, 20, 20, 20)
-
-        section_title = QLabel("Метод исследования")
-        section_title.setStyleSheet("color: white; font-size: 18px; font-weight: 600;")
-        method_layout.addWidget(section_title)
-
-        # Method cards
-        methods_layout = QHBoxLayout()
-        methods = [
-            (1, "ФРЧ", "Метод фиксированной частоты"),
-            (2, "ФРД", "Метод фиксированной длины"),
-            (3, "СО", "Метод для стержневых образцов"),
-            (4, "СВЧФ", "Метод для СВЧ ферритов")
-        ]
-
-        for method_id, method_name, description in methods:
-            card = MethodCard(method_id, method_name, description)
-            if method_id == self.method_id:
-                card.setStyleSheet("""
-                    ModernCard {
-                        background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                            stop:0 rgba(120, 121, 241, 0.2),
-                            stop:1 rgba(120, 121, 241, 0.1));
-                        border: 1px solid rgba(120, 121, 241, 0.3);
-                        border-radius: 12px;
-                    }
-                """)
-            card.mousePressEvent = partial(self.select_method, method_id)
-            methods_layout.addWidget(card)
-
-        method_layout.addLayout(methods_layout)
-        self.content_layout.addWidget(method_section)
-
-        # Method parameters
-        self.setup_method_parameters()
-
-    def setup_method_parameters(self):
-        """Setup parameters for selected method"""
-        param_section = ModernCard()
-        param_layout = QVBoxLayout(param_section)
-        param_layout.setContentsMargins(20, 20, 20, 20)
-
-        section_title = QLabel(f"Данные для исследования #{self.method_id}")
-        section_title.setStyleSheet("color: white; font-size: 18px; font-weight: 600;")
-        param_layout.addWidget(section_title)
-
-        # Method-specific parameters
-        form_layout = QFormLayout()
-        form_layout.setVerticalSpacing(12)
-        form_layout.setHorizontalSpacing(20)
-
-        if self.method_id == 1:
-            self.t_input = QLineEdit()
-            self.delL_input = QLineEdit()
-            self.n_input = QSpinBox()
-            self.n_input.setValue(1)
-
-            form_layout.addRow("Толщина образца, мм:", self.t_input)
-            form_layout.addRow("Перемещение поршня, мм:", self.delL_input)
-            form_layout.addRow("Кол-во измерений:", self.n_input)
-
-        elif self.method_id == 2:
-            self.t_input = QLineEdit()
-            self.n_input = QSpinBox()
-            self.n_input.setValue(1)
-
-            form_layout.addRow("Толщина образца, мм:", self.t_input)
-            form_layout.addRow("Кол-во измерений:", self.n_input)
-
-        elif self.method_id == 3:
-            self.d_input = QLineEdit()
-            self.n_input = QSpinBox()
-            self.n_input.setValue(1)
-
-            form_layout.addRow("Радиус образца, мм:", self.d_input)
-            form_layout.addRow("Кол-во измерений:", self.n_input)
-
-        elif self.method_id == 4:
-            self.form_combo = QComboBox()
-            self.form_combo.addItems(["Стержень", "Квадратная"])
-            self.mp_input = QLineEdit()
-            self.ism_input = QSpinBox()
-            self.ism_input.setValue(1)
-
-            form_layout.addRow("Форма образца:", self.form_combo)
-            form_layout.addRow("Поперечная составляющая МП:", self.mp_input)
-            form_layout.addRow("Кол-во измерений:", self.ism_input)
-
-        # Style form labels and inputs
-        for i in range(form_layout.rowCount()):
-            label = form_layout.itemAt(i, QFormLayout.ItemRole.LabelRole).widget()
-            if label:
-                label.setStyleSheet("color: rgba(255, 255, 255, 0.8); font-size: 14px;")
-
-            field = form_layout.itemAt(i, QFormLayout.ItemRole.FieldRole).widget()
-            if field:
-                field.setStyleSheet("""
-                    QLineEdit, QSpinBox, QComboBox {
-                        background: rgba(255, 255, 255, 0.1);
-                        border: 1px solid rgba(255, 255, 255, 0.2);
-                        border-radius: 6px;
-                        padding: 8px 12px;
-                        color: white;
-                        font-size: 14px;
-                    }
-                    QLineEdit:focus, QSpinBox:focus, QComboBox:focus {
-                        border: 1px solid rgba(120, 121, 241, 0.6);
-                    }
-                    QComboBox::drop-down {
-                        border: none;
-                    }
-                    QComboBox::down-arrow {
-                        image: none;
-                        border-left: 5px solid transparent;
-                        border-right: 5px solid transparent;
-                        border-top: 5px solid white;
-                    }
-                """)
-
-        param_layout.addLayout(form_layout)
-
-        # Additional parameters (collapsible)
-        additional_group = QGroupBox("Дополнительные параметры исследования")
-        additional_group.setStyleSheet("""
-            QGroupBox {
-                color: white;
-                font-size: 14px;
-                font-weight: 600;
-                border: 1px solid rgba(255, 255, 255, 0.2);
-                border-radius: 6px;
-                margin-top: 12px;
-                padding-top: 8px;
-            }
-            QGroupBox::title {
-                subcontrol-origin: margin;
-                left: 10px;
-                padding: 0 8px 0 8px;
-            }
-        """)
-
-        additional_layout = QFormLayout(additional_group)
-        additional_layout.setVerticalSpacing(10)
-
-        if self.method_id in [1, 2, 3]:
-            self.index_combo = QComboBox()
-            if self.method_id == 3:
-                self.index_combo.addItems(["1", "2", "3"])
-                self.index_combo.setCurrentText("1")
-            else:
-                self.index_combo.addItems(["2", "3", "4", "5"])
-                self.index_combo.setCurrentText("2")
-
-            self.d_res_input = QLineEdit()
-            self.d_res_input.setReadOnly(True)
-            if self.method_id == 1:
-                self.d_res_input.setText("50")
-            elif self.method_id == 2:
-                self.d_res_input.setText("45")
-            elif self.method_id == 3:
-                self.d_res_input.setText("22.5")
-
-            self.h_res_input = QLineEdit()
-            if self.method_id == 1:
-                self.h_res_input.setText("90")
-            elif self.method_id in [2, 3]:
-                self.h_res_input.setText("45")
-
-            additional_layout.addRow("Продольный индекс колебаний:", self.index_combo)
-            additional_layout.addRow("Диаметр резонатора, мм:", self.d_res_input)
-            additional_layout.addRow("Высота резонатора, мм:", self.h_res_input)
-
-        elif self.method_id == 4:
-            self.d_res_input = QLineEdit()
-            self.d_res_input.setText("11")
-            self.d_sample_input = QLineEdit()
-            self.d_sample_input.setText("0.81")
-
-            additional_layout.addRow("Радиус резонатора:", self.d_res_input)
-            additional_layout.addRow("Радиус образца:", self.d_sample_input)
-
-        # Style additional form
-        for i in range(additional_layout.rowCount()):
-            label = additional_layout.itemAt(i, QFormLayout.ItemRole.LabelRole).widget()
-            if label:
-                label.setStyleSheet("color: rgba(255, 255, 255, 0.8); font-size: 13px;")
-
-            field = additional_layout.itemAt(i, QFormLayout.ItemRole.FieldRole).widget()
-            if field:
-                field.setStyleSheet("""
-                    QLineEdit, QComboBox {
-                        background: rgba(255, 255, 255, 0.1);
-                        border: 1px solid rgba(255, 255, 255, 0.2);
-                        border-radius: 4px;
-                        padding: 6px 10px;
-                        color: white;
-                        font-size: 13px;
-                    }
-                """)
-
-        param_layout.addWidget(additional_group)
-        self.content_layout.addWidget(param_section)
-
-    def select_method(self, method_id, event):
-        """Change selected method"""
-        self.method_id = method_id
-        # Remove old parameters and add new ones
-        for i in reversed(range(self.content_layout.count())):
-            if i > 0:  # Keep method selection section
-                item = self.content_layout.itemAt(i)
-                if item.widget():
-                    item.widget().deleteLater()
-        self.setup_method_parameters()
-
-    def create_measurement(self):
-        """Create new measurement"""
-        # Prepare data based on method
-        data_obj = {
-            "method": self.method_id,
-            "data": {
-                str(self.method_id): {}
-            }
-        }
-
-        if self.method_id == 1:
-            data_obj["data"][str(self.method_id)] = {
-                "t": self.t_input.text(),
-                "del_L": self.delL_input.text(),
-                "n": self.n_input.value(),
-                "index": self.index_combo.currentText(),
-                "d_res": self.d_res_input.text(),
-                "h_res": self.h_res_input.text()
-            }
-        elif self.method_id == 2:
-            data_obj["data"][str(self.method_id)] = {
-                "t": self.t_input.text(),
-                "n": self.n_input.value(),
-                "index": self.index_combo.currentText(),
-                "d_res": self.d_res_input.text(),
-                "h_res": self.h_res_input.text()
-            }
-        elif self.method_id == 3:
-            data_obj["data"][str(self.method_id)] = {
-                "d": self.d_input.text(),
-                "n": self.n_input.value(),
-                "index": self.index_combo.currentText(),
-                "d_res": self.d_res_input.text(),
-                "h_res": self.h_res_input.text()
-            }
-        elif self.method_id == 4:
-            data_obj["data"][str(self.method_id)] = {
-                "form": "1" if self.form_combo.currentText() == "Стержень" else "0",
-                "mp": self.mp_input.text(),
-                "ism": self.ism_input.value(),
-                "d_res": self.d_res_input.text(),
-                "d_sample": self.d_sample_input.text()
-            }
-
-        # Call backend
-        response = self.backend.ferro_query("new_create", data_obj)
-
-        # Start measurement process
-        self.measurement_process = MeasurementProcessDialog(self.backend, response['id'], self)
-        self.measurement_process.show()
-
-        self.accept()
 
 
 class MeasurementProcessDialog(QDialog):
@@ -1044,6 +1346,12 @@ class MeasurementProcessDialog(QDialog):
         self.backend = backend
         self.measure_id = measure_id
         self.current_stage = 1
+        self.setStyleSheet("""
+            MeasurementProcessDialog {
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #222326, stop:1 #191a1d);
+            }
+        """)
         self.setup_ui()
         self.start_measurement_process()
 
@@ -1059,12 +1367,17 @@ class MeasurementProcessDialog(QDialog):
         # Header
         header = QWidget()
         header.setFixedHeight(60)
-        header.setStyleSheet("background: rgba(255, 255, 255, 0.05);")
+        header.setStyleSheet("""
+            QWidget {
+                background: rgba(255, 255, 255, 0.05);
+                border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            }
+        """)
         header_layout = QHBoxLayout(header)
         header_layout.setContentsMargins(20, 0, 20, 0)
 
         self.title_label = QLabel("Исследование #...")
-        self.title_label.setStyleSheet("color: white; font-size: 16px; font-weight: 600;")
+        self.title_label.setStyleSheet("color: white; font-size: 16px; font-weight: 600; background: transparent;")
         header_layout.addWidget(self.title_label)
         header_layout.addStretch()
 
@@ -1089,20 +1402,25 @@ class MeasurementProcessDialog(QDialog):
         # Progress info
         progress_widget = QWidget()
         progress_widget.setFixedHeight(120)
-        progress_widget.setStyleSheet("background: rgba(255, 255, 255, 0.03);")
+        progress_widget.setStyleSheet("""
+            QWidget {
+                background: rgba(40, 41, 44, 0.7);
+                border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            }
+        """)
         progress_layout = QVBoxLayout(progress_widget)
         progress_layout.setContentsMargins(30, 20, 30, 20)
 
         # Stage info
         stage_layout = QHBoxLayout()
         self.stage_label = QLabel("Этап 1")
-        self.stage_label.setStyleSheet("color: white; font-size: 16px; font-weight: 600;")
+        self.stage_label.setStyleSheet("color: white; font-size: 16px; font-weight: 600; background: transparent;")
 
         self.stage_desc = QLabel("Подготовка оборудования...")
-        self.stage_desc.setStyleSheet("color: rgba(255, 255, 255, 0.7); font-size: 14px;")
+        self.stage_desc.setStyleSheet("color: rgba(255, 255, 255, 0.7); font-size: 14px; background: transparent;")
 
         self.progress_label = QLabel("0%")
-        self.progress_label.setStyleSheet("color: white; font-size: 24px; font-weight: 600;")
+        self.progress_label.setStyleSheet("color: white; font-size: 24px; font-weight: 600; background: transparent;")
 
         stage_layout.addWidget(self.stage_label)
         stage_layout.addWidget(self.stage_desc)
@@ -1144,6 +1462,7 @@ class MeasurementProcessDialog(QDialog):
 
         # Main graph
         self.graph = MeasurementGraphWidget()
+        self.graph.plot_widget.setBackground('#1a1b1e')
         graph_layout.addWidget(self.graph, 3)
 
         # Side info
@@ -1157,11 +1476,13 @@ class MeasurementProcessDialog(QDialog):
         side_layout.addWidget(self.loading_spinner, 0, Qt.AlignmentFlag.AlignHCenter)
 
         self.status_title = QLabel("Исследование в процессе")
-        self.status_title.setStyleSheet("color: white; font-size: 16px; font-weight: 600; text-align: center;")
+        self.status_title.setStyleSheet(
+            "color: white; font-size: 16px; font-weight: 600; text-align: center; background: transparent;")
         self.status_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self.status_desc = QLabel("Пожалуйста, ожидайте завершения процесса.")
-        self.status_desc.setStyleSheet("color: rgba(255, 255, 255, 0.7); font-size: 14px; text-align: center;")
+        self.status_desc.setStyleSheet(
+            "color: rgba(255, 255, 255, 0.7); font-size: 14px; text-align: center; background: transparent;")
         self.status_desc.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.status_desc.setWordWrap(True)
 
@@ -1175,7 +1496,7 @@ class MeasurementProcessDialog(QDialog):
         sample_layout = QVBoxLayout(self.sample_input_container)
 
         sample_label = QLabel("Имя образца:")
-        sample_label.setStyleSheet("color: white; font-size: 14px;")
+        sample_label.setStyleSheet("color: white; font-size: 14px; background: transparent;")
 
         self.sample_name_input = QLineEdit()
         self.sample_name_input.setPlaceholderText("Введите имя образца")
@@ -1372,10 +1693,10 @@ class MeasureDetailPage(QWidget):
         title_section.setSpacing(8)
 
         self.measure_title = QLabel("Вычисление #...")
-        self.measure_title.setStyleSheet("color: white; font-size: 24px; font-weight: 600;")
+        self.measure_title.setStyleSheet("color: white; font-size: 24px; font-weight: 600; background: transparent;")
 
         self.measure_info = QLabel("CABAN R180 • RESONATOR 1 • 20.10.2024 17:56:46")
-        self.measure_info.setStyleSheet("color: rgba(255, 255, 255, 0.6); font-size: 14px;")
+        self.measure_info.setStyleSheet("color: rgba(255, 255, 255, 0.6); font-size: 14px; background: transparent;")
 
         title_section.addWidget(self.measure_title)
         title_section.addWidget(self.measure_info)
@@ -1391,6 +1712,7 @@ class MeasureDetailPage(QWidget):
         graph_layout.setContentsMargins(0, 0, 0, 0)
 
         self.graph = MeasurementGraphWidget()
+        self.graph.plot_widget.setBackground('#1a1b1e')
         graph_layout.addWidget(self.graph)
 
         splitter.addWidget(graph_container)
@@ -1422,7 +1744,7 @@ class MeasureDetailPage(QWidget):
 
         # Results table
         results_label = QLabel("Результаты вычислений")
-        results_label.setStyleSheet("color: white; font-size: 18px; font-weight: 600;")
+        results_label.setStyleSheet("color: white; font-size: 18px; font-weight: 600; background: transparent;")
         content_layout.addWidget(results_label)
 
         self.results_table = ResultsTableWidget()
@@ -1474,6 +1796,7 @@ class MeasureDetailPage(QWidget):
                 font-size: 14px;
                 font-weight: 600;
                 margin-top: 10px;
+                background: transparent;
             }
         """)
         self.info_content_layout.addWidget(baseline_title)
@@ -1487,12 +1810,13 @@ class MeasureDetailPage(QWidget):
                     font-size: 14px;
                     font-weight: 600;
                     margin-top: 20px;
+                    background: transparent;
                 }
             """)
             self.info_content_layout.addWidget(sample_title)
 
             sample_info = QLabel(f"F₀: 9.87 ГГц\nQ: 789")
-            sample_info.setStyleSheet("color: rgba(255, 255, 255, 0.8); font-size: 13px;")
+            sample_info.setStyleSheet("color: rgba(255, 255, 255, 0.8); font-size: 13px; background: transparent;")
             self.info_content_layout.addWidget(sample_info)
 
         self.info_content_layout.addStretch()
@@ -1526,8 +1850,25 @@ class MeasuresPage(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
-        # Header - СОХРАНЯЕМ как атрибут класса
+        # Header
         self.header = HeaderWidget("Измерения", "", self)
+        self.header.new_measure_btn.setText("Новое исследование")  # Меняем текст
+        self.header.new_measure_btn.setStyleSheet("""
+            QPushButton {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #7879F1, stop:1 #9A9BFF);
+                color: white;
+                border: none;
+                border-radius: 8px;
+                padding: 12px 24px;
+                font-weight: 600;
+                font-size: 14px;
+            }
+            QPushButton:hover {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #6A6BE1, stop:1 #8A8BEF);
+            }
+        """)
         layout.addWidget(self.header)
 
         # Content
@@ -1573,6 +1914,7 @@ class MeasuresPage(QWidget):
                 font-weight: 600;
             }
         """)
+        create_btn.clicked.connect(self.create_measurement)
 
         sort_btn = QPushButton("Сортировка")
         sort_btn.setStyleSheet("""
@@ -1625,7 +1967,6 @@ class MeasuresPage(QWidget):
         self.load_measurements()
 
         # Connect signals
-        create_btn.clicked.connect(self.create_measurement)
         search_input.textChanged.connect(self.filter_measurements)
 
     def load_measurements(self):
@@ -1641,7 +1982,8 @@ class MeasuresPage(QWidget):
 
         if not measures:
             empty_label = QLabel("Нет проведенных измерений")
-            empty_label.setStyleSheet("color: rgba(255, 255, 255, 0.5); text-align: center; padding: 60px;")
+            empty_label.setStyleSheet(
+                "color: rgba(255, 255, 255, 0.5); text-align: center; padding: 60px; background: transparent;")
             empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             self.measures_layout.addWidget(empty_label)
             return
@@ -1679,8 +2021,12 @@ class MeasuresPage(QWidget):
         graph_widget.setFixedSize(240, 120)
         graph_widget.setMouseEnabled(x=False, y=False)
         graph_widget.hideButtons()
+        graph_widget.setBackground('#1a1b1e')  # Темный фон
+
+        # Hide axes
         graph_widget.getPlotItem().hideAxis('left')
         graph_widget.getPlotItem().hideAxis('bottom')
+        graph_widget.getPlotItem().getViewBox().setBorder(None)
 
         # Plot data
         x_data = np.array(measure['x'])
@@ -1700,10 +2046,10 @@ class MeasuresPage(QWidget):
         info_layout.setSpacing(12)
 
         title = QLabel("Метод объёмного резонатора")
-        title.setStyleSheet("color: white; font-size: 16px; font-weight: 600;")
+        title.setStyleSheet("color: white; font-size: 16px; font-weight: 600; background: transparent;")
 
         measure_id = QLabel(f"#{measure['title']} - {measure['time']}")
-        measure_id.setStyleSheet("color: rgba(255, 255, 255, 0.7); font-size: 13px;")
+        measure_id.setStyleSheet("color: rgba(255, 255, 255, 0.7); font-size: 13px; background: transparent;")
 
         # Sample results
         results_layout = QVBoxLayout()
@@ -1711,7 +2057,7 @@ class MeasuresPage(QWidget):
             for sample_idx, sample in measure['y_samples'].items():
                 result_text = f"tgδ: {sample['tgo']:.8f} • ε: {sample['E']:.3f}"
                 result_label = QLabel(result_text)
-                result_label.setStyleSheet("color: rgba(255, 255, 255, 0.8); font-size: 13px;")
+                result_label.setStyleSheet("color: rgba(255, 255, 255, 0.8); font-size: 13px; background: transparent;")
                 results_layout.addWidget(result_label)
 
         info_layout.addWidget(title)
@@ -1723,7 +2069,7 @@ class MeasuresPage(QWidget):
 
         # Make card clickable
         card.setCursor(Qt.CursorShape.PointingHandCursor)
-        card.mousePressEvent = partial(self.open_measurement, measure['id_m'])
+        card.mousePressEvent = lambda event, mid=measure['id_m']: self.open_measurement(mid, event)
 
         return card
 
@@ -1733,8 +2079,10 @@ class MeasuresPage(QWidget):
 
     def create_measurement(self):
         """Create new measurement"""
-        dialog = CreateMeasurementDialog(self.backend, 1, self)
-        dialog.exec()
+        # Показываем слайд-панель через главное окно
+        main_window = self.parent().parent()
+        if hasattr(main_window, 'show_method_panel'):
+            main_window.show_method_panel(1)  # По умолчанию метод 1
         self.load_measurements()
 
     def filter_measurements(self, text):
@@ -1755,7 +2103,7 @@ class ReportsPage(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
-        # Header - СОХРАНЯЕМ как атрибут класса
+        # Header
         self.header = HeaderWidget("Отчёты", "", self)
         layout.addWidget(self.header)
 
@@ -1829,7 +2177,7 @@ class ReportsPage(QWidget):
 
         # Reports grid
         reports_label = QLabel("Доступные отчёты")
-        reports_label.setStyleSheet("color: white; font-size: 18px; font-weight: 600;")
+        reports_label.setStyleSheet("color: white; font-size: 18px; font-weight: 600; background: transparent;")
         content_layout.addWidget(reports_label)
 
         reports_grid = QHBoxLayout()
@@ -1871,7 +2219,7 @@ class ReportsPage(QWidget):
 
         # Report icon
         icon = QLabel("📄")
-        icon.setStyleSheet("font-size: 32px;")
+        icon.setStyleSheet("font-size: 32px; background: transparent;")
         icon.setFixedSize(60, 60)
 
         # Report info
@@ -1879,10 +2227,10 @@ class ReportsPage(QWidget):
         info_layout.setSpacing(8)
 
         title_label = QLabel(title)
-        title_label.setStyleSheet("color: white; font-size: 16px; font-weight: 600;")
+        title_label.setStyleSheet("color: white; font-size: 16px; font-weight: 600; background: transparent;")
 
         date_label = QLabel(date)
-        date_label.setStyleSheet("color: rgba(255, 255, 255, 0.6); font-size: 13px;")
+        date_label.setStyleSheet("color: rgba(255, 255, 255, 0.6); font-size: 13px; background: transparent;")
 
         info_layout.addWidget(title_label)
         info_layout.addWidget(date_label)
@@ -1918,7 +2266,7 @@ class SettingsPage(QWidget):
 
         # Settings title
         title = QLabel("Настройки")
-        title.setStyleSheet("color: white; font-size: 24px; font-weight: 600; padding: 30px;")
+        title.setStyleSheet("color: white; font-size: 24px; font-weight: 600; padding: 30px; background: transparent;")
         sidebar_layout.addWidget(title)
 
         # Settings categories
@@ -1944,6 +2292,7 @@ class SettingsPage(QWidget):
                     font-size: 12px;
                     font-weight: 600;
                     padding: 20px 30px 10px 30px;
+                    background: transparent;
                 }
             """)
             sidebar_layout.addWidget(category_label)
@@ -1977,7 +2326,7 @@ class SettingsPage(QWidget):
         content_layout.setSpacing(20)
 
         content_title = QLabel("Настройка аккаунта")
-        content_title.setStyleSheet("color: white; font-size: 24px; font-weight: 600;")
+        content_title.setStyleSheet("color: white; font-size: 24px; font-weight: 600; background: transparent;")
         content_layout.addWidget(content_title)
 
         # Settings form would go here
@@ -2110,6 +2459,7 @@ class FERROMainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.backend = FERROBackend()
+        self.slide_panel = None  # Добавляем ссылку на панель
         self.setup_ui()
 
     def setup_ui(self):
@@ -2162,11 +2512,35 @@ class FERROMainWindow(QMainWindow):
 
         main_layout.addWidget(content_widget, 1)
 
+        # Создаем выезжающую панель
+        self.create_slide_panel()
+
         # Connect navigation
         self.connect_navigation()
 
         # Show home page by default
         self.page_stack.setCurrentWidget(self.home_page)
+
+    def create_slide_panel(self):
+        """Создать выезжающую панель"""
+        self.slide_panel = SlideInPanel(self)
+        self.slide_panel.hide()  # Скрываем по умолчанию
+
+    def show_method_panel(self, method_id=1):
+        """Show slide panel with selected method"""
+        if self.slide_panel:
+            # Обновляем размер панели в соответствии с текущим размером окна
+            self.slide_panel.setFixedHeight(self.height())
+            self.slide_panel.show_panel(method_id)
+
+    def resizeEvent(self, event):
+        """Обработка изменения размера окна"""
+        super().resizeEvent(event)
+        if self.slide_panel and self.slide_panel.isVisible():
+            # Обновляем размер панели при изменении размера окна
+            self.slide_panel.setFixedHeight(self.height())
+            # Перемещаем панель, чтобы она оставалась на месте
+            self.slide_panel.move(self.width() - self.slide_panel.width(), 0)
 
     def connect_navigation(self):
         """Connect sidebar navigation to page changes"""
@@ -2178,22 +2552,26 @@ class FERROMainWindow(QMainWindow):
             nav_buttons[2].clicked.connect(lambda: self.page_stack.setCurrentWidget(self.reports_page))
             nav_buttons[3].clicked.connect(lambda: self.page_stack.setCurrentWidget(self.settings_page))
 
-        # Connect header new measurement button
-        self.home_page.header.new_measure_btn.clicked.connect(self.show_new_measurement_dialog)
-        self.measures_page.header.new_measure_btn.clicked.connect(self.show_new_measurement_dialog)
-
-    def show_new_measurement_dialog(self):
-        """Show new measurement dialog"""
-        dialog = CreateMeasurementDialog(self.backend, 1, self)
-        dialog.exec()
-        # Refresh pages if needed
-        self.home_page.load_recent_measurements()
-        self.measures_page.load_measurements()
+        # На странице измерений делаем кнопку активной
+        self.measures_page.header.new_measure_btn.clicked.connect(
+            lambda: self.show_method_panel(1)
+        )
 
     def open_measurement(self, measure_id):
         """Open measurement detail page"""
         self.measure_detail_page.load_measurement(measure_id)
         self.page_stack.setCurrentWidget(self.measure_detail_page)
+
+    def mousePressEvent(self, event):
+        """Обработка кликов для закрытия панели"""
+        if self.slide_panel and self.slide_panel.isVisible():
+            # Проверяем, был ли клик вне панели
+            panel_rect = self.slide_panel.geometry()
+            if not panel_rect.contains(event.pos()):
+                # Клик был вне панели - закрываем её
+                self.slide_panel.hide_panel()
+
+        super().mousePressEvent(event)
 
 
 def main():
@@ -2202,6 +2580,110 @@ def main():
 
     # Set application-wide style
     app.setStyle("Fusion")
+
+    # Глобальный темный стиль для всех виджетов
+    dark_style = """
+    /* Основной фон для всех виджетов */
+    QMainWindow, QDialog, QWidget, QLabel, QPushButton {
+        background: transparent;
+        color: white;
+    }
+
+    /* Специально для фонового виджета */
+    GradientBackground {
+        background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+            stop:0 #222326, stop:1 #191a1d);
+    }
+
+    /* Панель */
+    SlideInPanel {
+        background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+            stop:0 #222326, stop:1 #191a1d);
+        border-left: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    /* Карточки */
+    ModernCard {
+        background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+            stop:0 rgba(255, 255, 255, 0.1),
+            stop:1 rgba(255, 255, 255, 0.05));
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+    }
+
+    /* Таблицы */
+    QTableWidget {
+        background: rgba(30, 31, 34, 0.9);
+        color: white;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+    }
+
+    /* Поля ввода */
+    QLineEdit, QSpinBox, QComboBox, QTextEdit {
+        background: rgba(40, 41, 44, 0.9);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 6px;
+        padding: 8px 12px;
+        color: white;
+        selection-background-color: rgba(120, 121, 241, 0.5);
+    }
+
+    QLineEdit:focus, QSpinBox:focus, QComboBox:focus {
+        border: 1px solid rgba(120, 121, 241, 0.6);
+    }
+
+    /* Кнопки в сайдбаре */
+    QPushButton {
+        background: transparent;
+        border: none;
+        text-align: left;
+        padding: 12px 20px;
+    }
+
+    /* Заголовки секций */
+    QGroupBox {
+        color: white;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 8px;
+        margin-top: 16px;
+        padding-top: 10px;
+        background: rgba(40, 41, 44, 0.6);
+    }
+
+    QGroupBox::title {
+        subcontrol-origin: margin;
+        left: 10px;
+        padding: 0 8px;
+    }
+
+    /* Скроллбары */
+    QScrollBar:vertical {
+        background: rgba(255, 255, 255, 0.05);
+        width: 10px;
+        border-radius: 5px;
+    }
+
+    QScrollBar::handle:vertical {
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 5px;
+        min-height: 20px;
+    }
+
+    QScrollBar::handle:vertical:hover {
+        background: rgba(255, 255, 255, 0.3);
+    }
+
+    /* Разделители */
+    QSplitter::handle {
+        background: rgba(255, 255, 255, 0.1);
+    }
+
+    QSplitter::handle:hover {
+        background: rgba(120, 121, 241, 0.3);
+    }
+    """
+    app.setStyleSheet(dark_style)
 
     # Create and show main window
     window = FERROMainWindow()

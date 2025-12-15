@@ -1,236 +1,153 @@
+"""
+FERRO — Complete PyQt6 port without simplifications
+Main entry point
+"""
+
 import sys
-from PyQt6.QtWidgets import (
-    QApplication, QMainWindow, QWidget, QFrame,
-    QHBoxLayout, QVBoxLayout, QLabel, QPushButton,
-    QLineEdit, QScrollArea, QSizePolicy
-)
-from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import QApplication
+from main_window import FERROMainWindow
 
 
-# ---------------- Sidebar ----------------
-class Sidebar(QFrame):
-    def __init__(self):
-        super().__init__()
-        self.setFixedWidth(220)
-        self.setObjectName("Sidebar")
+def main():
+    """Main application entry point"""
+    app = QApplication(sys.argv)
 
-        layout = QVBoxLayout(self)
-        layout.setSpacing(12)
+    # Set application-wide style
+    app.setStyle("Fusion")
 
-        title = QLabel("FERRO")
-        title.setObjectName("SidebarTitle")
+    # Стиль для рамки окна
+    app.setStyleSheet("""
+        QMainWindow {
+            background: transparent;
+        }
 
-        layout.addWidget(title)
-        layout.addSpacing(20)
+        QWidget#central_widget {
+            background: #222326;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
 
-        for text in ["Главная", "Измерения", "Отчёты"]:
-            btn = QPushButton(text)
-            btn.setObjectName("SidebarButton")
-            layout.addWidget(btn)
+        /* Эффект тени */
+        QGraphicsDropShadowEffect {
+            border-radius: 12px;
+            color: rgba(0, 0, 0, 0.3);
+            blur-radius: 20px;
+        }
+    """)
 
-        layout.addStretch()
+    # Глобальный темный стиль для всех виджетов
+    dark_style = """
+    /* Основной фон для всех виджетов */
+    QMainWindow, QDialog, QWidget {
+        background: transparent;
+    }
 
+    QLabel, QPushButton {
+        color: white;
+    }
 
-# ---------------- Top bar ----------------
-class TopBar(QFrame):
-    def __init__(self):
-        super().__init__()
-        self.setFixedHeight(56)
-        self.setObjectName("TopBar")
+    /* Специально для фонового виджета */
+    GradientBackground {
+        background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+            stop:0 #222326, stop:1 #191a1d);
+    }
 
-        layout = QHBoxLayout(self)
+    /* Панель - ПОЛНОСТЬЮ НЕПРОЗРАЧНАЯ */
+    SlideInPanel {
+        background: #1a1b1e;
+        border-left: 1px solid rgba(255, 255, 255, 0.1);
+    }
 
-        search = QLineEdit()
-        search.setPlaceholderText("Бином")
-        search.setObjectName("SearchField")
+    /* Карточки */
+    ModernCard {
+        background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+            stop:0 rgba(255, 255, 255, 0.1),
+            stop:1 rgba(255, 255, 255, 0.05));
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+    }
 
-        layout.addWidget(search)
+    /* Таблицы */
+    QTableWidget {
+        background: rgba(30, 31, 34, 0.9);
+        color: white;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+    }
 
+    /* Поля ввода */
+    QLineEdit, QSpinBox, QComboBox, QTextEdit {
+        background: rgba(40, 41, 44, 0.9);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 6px;
+        padding: 8px 12px;
+        color: white;
+        selection-background-color: rgba(120, 121, 241, 0.5);
+    }
 
-# ---------------- Method card ------------
-class MethodCard(QFrame):
-    def __init__(self, title, desc):
-        super().__init__()
-        self.setObjectName("MethodCard")
-        self.setMinimumWidth(220)
+    QLineEdit:focus, QSpinBox:focus, QComboBox:focus {
+        border: 1px solid rgba(120, 121, 241, 0.6);
+    }
 
-        layout = QVBoxLayout(self)
+    /* Кнопки в сайдбаре */
+    QPushButton {
+        background: transparent;
+        border: none;
+        text-align: left;
+        padding: 12px 20px;
+    }
 
-        t = QLabel(title)
-        t.setObjectName("CardTitle")
+    /* Заголовки секций */
+    QGroupBox {
+        color: white;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 8px;
+        margin-top: 16px;
+        padding-top: 10px;
+        background: rgba(40, 41, 44, 0.6);
+    }
 
-        d = QLabel(desc)
-        d.setWordWrap(True)
+    QGroupBox::title {
+        subcontrol-origin: margin;
+        left: 10px;
+        padding: 0 8px;
+    }
 
-        layout.addWidget(t)
-        layout.addWidget(d)
-        layout.addStretch()
+    /* Скроллбары */
+    QScrollBar:vertical {
+        background: rgba(255, 255, 255, 0.05);
+        width: 10px;
+        border-radius: 5px;
+    }
 
+    QScrollBar::handle:vertical {
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 5px;
+        min-height: 20px;
+    }
 
-# ---------------- Research card ----------
-class ResearchCard(QFrame):
-    def __init__(self):
-        super().__init__()
-        self.setObjectName("ResearchCard")
+    QScrollBar::handle:vertical:hover {
+        background: rgba(255, 255, 255, 0.3);
+    }
 
-        layout = QHBoxLayout(self)
+    /* Разделители */
+    QSplitter::handle {
+        background: rgba(255, 255, 255, 0.1);
+    }
 
-        graph = QLabel("📈 график")
-        graph.setFixedSize(160, 90)
-        graph.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        graph.setStyleSheet("border:1px dashed #444;")
+    QSplitter::handle:hover {
+        background: rgba(120, 121, 241, 0.3);
+    }
+    """
+    app.setStyleSheet(dark_style)
 
-        info = QLabel(
-            "<b>Метод объёмного резонатора</b><br>"
-            "Добротность (Q): 789<br>"
-            "Тангенс потерь: 0.002"
-        )
+    # Create and show main window
+    window = FERROMainWindow()
+    window.show()
 
-        layout.addWidget(graph)
-        layout.addWidget(info)
-        layout.addStretch()
-
-
-# ---------------- Home page --------------
-class HomePage(QWidget):
-    def __init__(self):
-        super().__init__()
-
-        root = QVBoxLayout(self)
-        root.setSpacing(24)
-
-        title = QLabel("Главная")
-        title.setObjectName("PageTitle")
-        root.addWidget(title)
-
-        # ---- Methods ----
-        methods_layout = QHBoxLayout()
-        methods_layout.setSpacing(16)
-
-        methods_layout.addWidget(MethodCard(
-            "Метод 1",
-            "Метод объёмного резонатора при фиксированной резонансной частоте"
-        ))
-        methods_layout.addWidget(MethodCard(
-            "Метод 2",
-            "Метод объёмного резонатора при фиксированной резонансной длине"
-        ))
-        methods_layout.addWidget(MethodCard(
-            "Метод 3",
-            "Метод объёмного резонатора для СВЧ ферритов"
-        ))
-
-        root.addLayout(methods_layout)
-
-        # ---- Recent ----
-        recent = QLabel("Последние исследования")
-        recent.setObjectName("SectionTitle")
-        root.addWidget(recent)
-
-        for _ in range(3):
-            root.addWidget(ResearchCard())
-
-        root.addStretch()
-
-
-# ---------------- Main window ------------
-class MainWindow(QMainWindow):
-    def __init__(self):
-        super().__init__()
-        self.setWindowTitle("FERRO")
-        self.resize(1200, 800)
-
-        central = QWidget()
-        main_layout = QHBoxLayout(central)
-
-        sidebar = Sidebar()
-
-        content = QWidget()
-        content_layout = QVBoxLayout(content)
-        content_layout.setContentsMargins(0, 0, 0, 0)
-
-        topbar = TopBar()
-
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-
-        page = HomePage()
-        scroll.setWidget(page)
-
-        content_layout.addWidget(topbar)
-        content_layout.addWidget(scroll)
-
-        main_layout.addWidget(sidebar)
-        main_layout.addWidget(content)
-
-        self.setCentralWidget(central)
+    # Start application event loop
+    sys.exit(app.exec())
 
 
-# ---------------- Run app ----------------
-app = QApplication(sys.argv)
-
-app.setStyleSheet("""
-* {
-    font-family: Segoe UI;
-    color: #e6e6e6;
-}
-
-QMainWindow {
-    background: #23252b;
-}
-
-#Sidebar {
-    background: #1c1e24;
-}
-
-#SidebarTitle {
-    font-size: 20px;
-    font-weight: bold;
-}
-
-#SidebarButton {
-    background: transparent;
-    text-align: left;
-    padding: 8px 12px;
-    border-radius: 6px;
-}
-
-#SidebarButton:hover {
-    background: #2a2d35;
-}
-
-#TopBar {
-    background: #2a2d35;
-}
-
-#SearchField {
-    background: #1c1e24;
-    border-radius: 6px;
-    padding: 6px 10px;
-}
-
-#PageTitle {
-    font-size: 26px;
-    font-weight: bold;
-}
-
-#SectionTitle {
-    font-size: 16px;
-    opacity: 0.7;
-}
-
-#MethodCard, #ResearchCard {
-    background: #2b2d33;
-    border-radius: 12px;
-    padding: 12px;
-}
-
-QWidget {
-    background: #23252b;
-}
-""")
-
-window = MainWindow()
-window.show()
-
-sys.exit(app.exec())
+if __name__ == "__main__":
+    main()
