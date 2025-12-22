@@ -92,13 +92,31 @@ class NewMeasurementPage(BasePage):
         section_title = WidgetFactory.create_label("Выберите метод исследования:", font_size=18, bold=True)
         parent_layout.addWidget(section_title)
 
+        # Добавляем информацию о выбранном методе
+        if self.selected_method:
+            method_names = {
+                1: "ФРЧ - Метод фиксированной частоты",
+                2: "ФРД - Метод фиксированной длины",
+                3: "СО - Метод для стержневых образцов",
+                4: "СВЧФ - Метод для СВЧ ферритов"
+            }
+
+            selected_text = WidgetFactory.create_label(
+                f"Выбран метод: {method_names.get(self.selected_method, f'Метод {self.selected_method}')}",
+                color="#7879F1",
+                font_size=14,
+                bold=True
+            )
+            selected_text.setStyleSheet("margin-bottom: 10px;")
+            parent_layout.addWidget(selected_text)
+
         # Method cards grid
         grid_widget = QWidget()
         grid_layout = QGridLayout(grid_widget)
         grid_layout.setSpacing(15)
         grid_layout.setContentsMargins(0, 0, 0, 0)
 
-        # Method cards
+        # Method cards (остальной код создания карточек остается)
         methods = [
             (1, "ФРЧ", "Метод фиксированной частоты", "#7879F1"),
             (2, "ФРД", "Метод фиксированной длины", "#9A9BFF"),
@@ -110,6 +128,8 @@ class NewMeasurementPage(BasePage):
             row = i // 2
             col = i % 2
             card = self.create_method_card(method_id, name, description, color)
+            # Сохраняем ID метода в карточке
+            card.method_id = method_id
             grid_layout.addWidget(card, row, col)
 
         parent_layout.addWidget(grid_widget)
@@ -119,6 +139,9 @@ class NewMeasurementPage(BasePage):
         card = ModernCard()
         card.setMinimumHeight(140)
         card.setCursor(Qt.CursorShape.PointingHandCursor)
+
+        # Сохраняем ID метода в объекте карточки
+        card.method_id = method_id
 
         # Highlight if selected
         if method_id == self.selected_method:
@@ -133,7 +156,7 @@ class NewMeasurementPage(BasePage):
             card.setStyleSheet(f"""
                 ModernCard {{
                     background: rgba(30, 31, 34, 0.8);
-                    border: 1px solid {Styles.BORDER_LIGHT};
+                    border: 1px solid rgba(255, 255, 255, 0.1);
                     border-radius: 12px;
                 }}
             """)
@@ -174,7 +197,7 @@ class NewMeasurementPage(BasePage):
         method_desc = QLabel(description)
         method_desc.setStyleSheet(f"""
             QLabel {{
-                color: {Styles.TEXT_SECONDARY};
+                color: rgba(255, 255, 255, 0.7);
                 font-size: 14px;
                 line-height: 1.4;
             }}
@@ -185,7 +208,7 @@ class NewMeasurementPage(BasePage):
         card_layout.addWidget(method_desc)
         card_layout.addStretch()
 
-        # Connect click
+        # Connect click - теперь используем метод select_method
         card.mousePressEvent = lambda e, mid=method_id: self.select_method(mid)
 
         return card
@@ -410,37 +433,62 @@ class NewMeasurementPage(BasePage):
         """Select a different method"""
         self.selected_method = method_id
 
+        # Обновляем выделение карточек
+        self.update_method_cards_selection()
+
         # Clear and rebuild parameters section
         self.refresh_parameters()
 
+    def update_method_cards_selection(self):
+        """Update visual selection of method cards"""
+        # Находим все карточки методов
+        grid_widget = self.findChild(QWidget)  # Ищем grid widget
+        if grid_widget:
+            for child in grid_widget.findChildren(QWidget):
+                if child.__class__.__name__ == "ModernCard" and hasattr(child, 'method_id'):
+                    # Проверяем, это ли метод выбран
+                    if child.method_id == self.selected_method:
+                        # Выделяем выбранную карточку
+                        child.setStyleSheet(f"""
+                            ModernCard {{
+                                background: rgba(40, 41, 44, 0.9);
+                                border: 2px solid #7879F1;
+                                border-radius: 12px;
+                            }}
+                        """)
+                    else:
+                        # Сбрасываем стиль для остальных
+                        child.setStyleSheet(f"""
+                            ModernCard {{
+                                background: rgba(30, 31, 34, 0.8);
+                                border: 1px solid rgba(255, 255, 255, 0.1);
+                                border-radius: 12px;
+                            }}
+                        """)
+
     def refresh_parameters(self):
-        """Refresh parameters section"""
-        # Find the parameters section (после method selection)
-        # Просто пересоздаем весь контент после первого раздела
-
-        # Сохраняем старый content_layout
-        old_content_layout = self.content_layout
-
-        # Создаем новый content widget
-        content_widget = QWidget()
-        self.content_layout = QVBoxLayout(content_widget)
-        self.content_layout.setContentsMargins(30, 20, 30, 20)
-        self.content_layout.setSpacing(25)
-
-        # Method selection (оставляем без изменений)
-        self.setup_method_selection(self.content_layout)
-
-        # Method parameters (обновляем)
-        self.setup_method_parameters(self.content_layout)
-
-        # Action buttons
-        self.setup_action_buttons(self.content_layout)
-
-        self.content_layout.addStretch()
-
-        # Обновляем scroll area
+        """Refresh parameters section when method changes"""
+        # Находим родительский scroll area
         scroll_area = self.findChild(QScrollArea)
         if scroll_area:
+            # Создаем новый контент
+            content_widget = QWidget()
+            self.content_layout = QVBoxLayout(content_widget)
+            self.content_layout.setContentsMargins(30, 20, 30, 20)
+            self.content_layout.setSpacing(25)
+
+            # Method selection
+            self.setup_method_selection(self.content_layout)
+
+            # Method parameters (обновляем)
+            self.setup_method_parameters(self.content_layout)
+
+            # Action buttons
+            self.setup_action_buttons(self.content_layout)
+
+            self.content_layout.addStretch()
+
+            # Устанавливаем новый виджет
             scroll_area.setWidget(content_widget)
 
     def clear_form(self):
@@ -540,3 +588,39 @@ class NewMeasurementPage(BasePage):
             }
 
         return data
+
+    def show_selected_method_notification(self, method_id):
+        """Show notification about selected method"""
+        method_names = {
+            1: "ФРЧ - Метод фиксированной частоты",
+            2: "ФРД - Метод фиксированной длины",
+            3: "СО - Метод для стержневых образцов",
+            4: "СВЧФ - Метод для СВЧ ферритов",
+            5: "Метод 5",
+            6: "Метод 6"
+        }
+
+        method_name = method_names.get(method_id, f"Метод {method_id}")
+
+        # Можно добавить временное уведомление в интерфейсе
+        notification = QLabel(f"Выбран метод: {method_name}")
+        notification.setStyleSheet(f"""
+            QLabel {{
+                color: #7879F1;
+                font-size: 14px;
+                font-weight: 600;
+                background: rgba(120, 121, 241, 0.1);
+                border: 1px solid #7879F1;
+                border-radius: 6px;
+                padding: 8px 16px;
+                margin: 10px 0;
+            }}
+        """)
+        notification.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        # Добавляем уведомление в начало контента
+        self.content_layout.insertWidget(0, notification)
+
+        # Убираем уведомление через 3 секунды
+        from PyQt6.QtCore import QTimer
+        QTimer.singleShot(3000, lambda: notification.deleteLater())

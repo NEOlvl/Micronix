@@ -1,23 +1,20 @@
 # widgets/__init__.py
-
 from .modern_card import ModernCard
-from .method_card import MethodCard
-from .sidebar import SidebarWidget
 from .header import HeaderWidget
-from .gradient_background import GradientBackground
 from .animated_button import AnimatedButton
-from .loading_spinner import LoadingSpinner
+from .gradient_background import GradientBackground
 from .measurement_graph import MeasurementGraphWidget
 from .results_table import ResultsTableWidget
+from .loading_spinner import LoadingSpinner
+from .method_card import MethodCard  # Добавляем новый импорт
 
 __all__ = [
     'ModernCard',
-    'MethodCard',
-    'SidebarWidget',
     'HeaderWidget',
-    'GradientBackground',
     'AnimatedButton',
-    'LoadingSpinner',
+    'GradientBackground',
     'MeasurementGraphWidget',
-    'ResultsTableWidget'
+    'ResultsTableWidget',
+    'LoadingSpinner',
+    'MethodCard',  # Добавляем в список
 ]

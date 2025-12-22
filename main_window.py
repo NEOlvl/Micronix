@@ -7,9 +7,10 @@ from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                              QStackedWidget, QGraphicsDropShadowEffect, QPushButton)
 from backend import FERROBackend
-from widgets import GradientBackground, SidebarWidget
+from widgets import GradientBackground
 from pages import HomePage, MeasuresPage, MeasureDetailPage, ReportsPage, SettingsPage
 from pages.new_measurement_page import NewMeasurementPage
+from widgets.sidebar import SidebarWidget
 
 
 class FERROMainWindow(QMainWindow):
@@ -97,7 +98,7 @@ class FERROMainWindow(QMainWindow):
             # Новое исследование
             nav_buttons[1].clicked.connect(lambda: (
                 self.sidebar.set_active_button(nav_buttons[1]),
-                self.page_stack.setCurrentWidget(self.new_measurement_page)
+                self.open_new_measurement_page()  # Без метода по умолчанию
             ))
 
             # Измерения
@@ -145,12 +146,17 @@ class FERROMainWindow(QMainWindow):
 
     def open_new_measurement_page(self, method_id=None):
         """Open new measurement page with optional method selection"""
-        if method_id:
+        print(f"open_new_measurement_page called with method_id: {method_id}")
+
+        if method_id and hasattr(self.new_measurement_page, 'selected_method'):
             self.new_measurement_page.selected_method = method_id
-            self.new_measurement_page.refresh_parameters()
+            if hasattr(self.new_measurement_page, 'refresh_parameters'):
+                self.new_measurement_page.refresh_parameters()
 
         # Активируем кнопку "Новое исследование" в сайдбаре
-        if len(self.sidebar.nav_buttons) >= 2:
-            self.sidebar.set_active_button(self.sidebar.nav_buttons[1])
+        if hasattr(self, 'sidebar') and hasattr(self.sidebar, 'nav_buttons'):
+            if len(self.sidebar.nav_buttons) >= 2:
+                self.sidebar.set_active_button(self.sidebar.nav_buttons[1])
 
-        self.page_stack.setCurrentWidget(self.new_measurement_page)
+        if hasattr(self, 'page_stack'):
+            self.page_stack.setCurrentWidget(self.new_measurement_page)
