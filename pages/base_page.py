@@ -2,7 +2,7 @@
 Base class for all pages
 """
 
-from PyQt6.QtWidgets import QWidget, QVBoxLayout
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout
 from widget_factory import WidgetFactory
 
 

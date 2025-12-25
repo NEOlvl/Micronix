@@ -3,7 +3,8 @@ Home page with purple header - UPDATED VERSION with categories and scrollable la
 """
 
 from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QHBoxLayout, QWidget, QVBoxLayout, QGridLayout, QMainWindow, QPushButton, QScrollArea
+from PyQt6.QtWidgets import QHBoxLayout, QWidget, QVBoxLayout, QGridLayout, QMainWindow, QPushButton, QScrollArea, \
+    QLabel
 from pages.base_page import BasePage
 from widget_factory import WidgetFactory
 from widgets import HeaderWidget, MethodCard
@@ -25,6 +26,22 @@ class HomePage(BasePage):
         # Setup custom UI with header and scrollable content
         self.setup_custom_header()
         self.setup_scrollable_content()
+
+    def create_section_title(self, text, font_size=20):
+        """Создание заголовка секции с единым стилем"""
+        label = QLabel(text)
+        label.setStyleSheet(f"""
+            QLabel {{
+                color: white !important;
+                font-size: {font_size}px !important;
+                font-weight: 700 !important;
+                background: transparent !important;
+                margin-bottom: 10px !important;
+                font-family: 'Segoe UI', Arial, sans-serif !important;
+                padding: 0 !important;
+            }}
+        """)
+        return label
 
     def clear_layout(self):
         """Clear the default layout"""
@@ -84,7 +101,7 @@ class HomePage(BasePage):
         content_widget = QWidget()
         self.content_layout = QVBoxLayout(content_widget)
         self.content_layout.setContentsMargins(30, 20, 30, 20)
-        self.content_layout.setSpacing(30)  # Увеличиваем spacing между секциями
+        self.content_layout.setSpacing(20)  # ИЗМЕНЯЕМ с 30 на 20 для меньшего расстояния между секциями
 
         # Add all sections
         self.setup_methods_section()
@@ -100,8 +117,7 @@ class HomePage(BasePage):
     def setup_methods_section(self):
         """Setup method selection section - обновляем с упрощенными карточками"""
         # Section title
-        section_title = WidgetFactory.create_label("Выберите метод исследования:", font_size=18, bold=True)
-        section_title.setStyleSheet("color: white; margin-bottom: 20px;")
+        section_title = self.create_section_title("Выберите метод исследования", 20)
         self.content_layout.addWidget(section_title)
 
         # Method cards grid - теперь 3 карточки в ряд (упрощенные)
@@ -184,26 +200,17 @@ class HomePage(BasePage):
 
     def setup_recent_measurements(self):
         """Setup recent measurements section"""
-        # Создаем контейнер с легким фоном для разделения
+        # УБИРАЕМ разделитель или делаем его тоньше
         separator = QWidget()
         separator.setFixedHeight(1)
-        separator.setStyleSheet("background: rgba(0, 0, 0, 0.1);")
+        separator.setStyleSheet("background: rgba(255, 255, 255, 0.05);")  # Более светлый, но менее заметный
         self.content_layout.addWidget(separator)
 
         # Create section header with "View all" button
         header_layout = QHBoxLayout()
-        header_layout.setContentsMargins(0, 30, 0, 20)
+        header_layout.setContentsMargins(0, 10, 0, 8)
 
-        recent_label = WidgetFactory.create_title("Последние исследования", level=2)
-        recent_label.setStyleSheet("""
-            QLabel {
-                color: white;
-                font-size: 20px;
-                font-weight: 600;
-                background: transparent;
-                margin-bottom: 15px;
-            }
-        """)
+        recent_label = self.create_section_title("Последние исследования", 20)
         header_layout.addWidget(recent_label)
         header_layout.addStretch()
 
@@ -213,16 +220,17 @@ class HomePage(BasePage):
         )
         all_measures_btn.setStyleSheet("""
             QPushButton {
-                background: transparent;
-                color: #7879F1;
-                border: none;
-                font-size: 14px;
-                padding: 0;
-                font-weight: 600;
+                background: transparent !important;
+                color: #7879F1 !important;
+                border: none !important;
+                font-size: 14px !important;
+                padding: 0 !important;
+                font-weight: 600 !important;
+                margin: 0 !important;
             }
             QPushButton:hover {
-                color: #6A6BE1;
-                text-decoration: underline;
+                color: #6A6BE1 !important;
+                text-decoration: underline !important;
             }
         """)
         all_measures_btn.clicked.connect(self.show_all_measurements)
@@ -235,7 +243,7 @@ class HomePage(BasePage):
         self.recent_widget = QWidget()
         self.recent_layout = QVBoxLayout(self.recent_widget)
         self.recent_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-        self.recent_layout.setSpacing(15)
+        self.recent_layout.setSpacing(10)
         self.recent_scroll.setWidget(self.recent_widget)
 
         self.content_layout.addWidget(self.recent_scroll)
@@ -247,17 +255,9 @@ class HomePage(BasePage):
         """Setup recent reports section"""
         # Section header with "View all" button
         header_layout = QHBoxLayout()
-        header_layout.setContentsMargins(0, 0, 0, 20)
+        header_layout.setContentsMargins(0, 0, 0, 10)
 
-        reports_label = WidgetFactory.create_title("Последние отчёты", level=2)
-        reports_label.setStyleSheet("""
-            QLabel {
-                color: white;
-                font-size: 20px;
-                font-weight: 600;
-                background: transparent;
-            }
-        """)
+        reports_label = self.create_section_title("Последние отчёты", 20)
         header_layout.addWidget(reports_label)
         header_layout.addStretch()
 
@@ -365,150 +365,277 @@ class HomePage(BasePage):
 
     def show_all_measurements(self):
         """Navigate to measurements page"""
-        main_window = self.parent().parent()
-        if main_window:
-            # Находим кнопку "Измерения" в sidebar
-            for btn in main_window.sidebar.nav_buttons:
-                if "Измерения" in btn.text():
-                    btn.click()
-                    break
+        # Ищем главное окно
+        from PyQt6.QtWidgets import QMainWindow
+
+        widget = self
+        main_window = None
+
+        while widget:
+            if isinstance(widget, QMainWindow):
+                main_window = widget
+                break
+            widget = widget.parent()
+
+        if main_window and hasattr(main_window, 'page_stack'):
+            # Переключаемся на страницу измерений
+            main_window.page_stack.setCurrentWidget(main_window.measures_page)
+
+            # Активируем кнопку "Измерения" в сайдбаре (индекс 2)
+            if hasattr(main_window, 'sidebar') and hasattr(main_window.sidebar, 'nav_buttons'):
+                if len(main_window.sidebar.nav_buttons) >= 3:
+                    main_window.sidebar.set_active_button(main_window.sidebar.nav_buttons[2])
+
+    def show_all_reports(self):
+        """Navigate to reports page"""
+        # Ищем главное окно
+        from PyQt6.QtWidgets import QMainWindow
+
+        widget = self
+        main_window = None
+
+        while widget:
+            if isinstance(widget, QMainWindow):
+                main_window = widget
+                break
+            widget = widget.parent()
+
+        if main_window and hasattr(main_window, 'page_stack'):
+            # Переключаемся на страницу отчетов
+            main_window.page_stack.setCurrentWidget(main_window.reports_page)
+
+            # Активируем кнопку "Отчёты" в сайдбаре (индекс 3)
+            if hasattr(main_window, 'sidebar') and hasattr(main_window.sidebar, 'nav_buttons'):
+                if len(main_window.sidebar.nav_buttons) >= 4:
+                    main_window.sidebar.set_active_button(main_window.sidebar.nav_buttons[3])
 
     def load_recent_measurements(self):
-        """Load and display recent measurements"""
+        """Load and display recent measurements (2 per row, 4 total)"""
         # Clear existing content
         for i in reversed(range(self.recent_layout.count())):
             item = self.recent_layout.itemAt(i)
             if item.widget():
                 item.widget().deleteLater()
 
-        # Get measurements from backend
-        measures = self.backend.ferro_query("measure_data", 0)
+        # Get real measurements from backend
+        real_measures = self.backend.ferro_query("measure_data", 0)
 
-        if not measures:
-            # Show empty state
-            empty_widget = QWidget()
-            empty_widget.setStyleSheet("background: transparent;")
-            empty_layout = QVBoxLayout(empty_widget)
-            empty_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        # Статические данные для 4х карточек
+        static_measurements = [
+            {
+                'id_m': 'demo1',
+                'method_id': 1,
+                'title': '001',
+                'time': '20.11.2024 14:30',
+                'y_samples': {
+                    '1': {
+                        'name': 'Керамика А',
+                        'tgo': 1.23e-4,
+                        'E': 9.87
+                    }
+                }
+            },
+            {
+                'id_m': 'demo2',
+                'method_id': 2,
+                'title': '002',
+                'time': '19.11.2024 11:45',
+                'y_samples': {
+                    '1': {
+                        'name': 'Полимер Б',
+                        'tgo': 2.34e-4,
+                        'E': 3.21
+                    }
+                }
+            },
+            {
+                'id_m': 'demo3',
+                'method_id': 3,
+                'title': '003',
+                'time': '18.11.2024 16:20',
+                'y_samples': {
+                    '1': {
+                        'name': 'Стекло В',
+                        'tgo': 3.45e-4,
+                        'E': 4.56
+                    }
+                }
+            },
+            {
+                'id_m': 'demo4',
+                'method_id': 4,
+                'title': '004',
+                'time': '17.11.2024 09:15',
+                'y_samples': {
+                    '1': {
+                        'name': 'Феррит Г',
+                        'tgo': 4.56e-4,
+                        'E': 7.89
+                    }
+                }
+            }
+        ]
 
-            empty_icon = WidgetFactory.create_label(
-                "📊",
-                font_size=48,
-                align="center"
-            )
-            empty_icon.setStyleSheet("color: rgba(255, 255, 255, 0.5);")
+        # Если есть реальные измерения, используем их (максимум 4)
+        if real_measures:
+            # Берем максимум 4 последних реальных измерений
+            recent_real = real_measures[-4:] if len(real_measures) > 4 else real_measures
 
-            empty_text = WidgetFactory.create_label(
-                "Пока нет проведенных исследований",
-                color="rgba(255, 255, 255, 0.5)",
-                align="center",
-                font_size=16
-            )
+            # Создаем контейнер для сетки 2x2
+            grid_widget = QWidget()
+            grid_layout = QGridLayout(grid_widget)
+            grid_layout.setSpacing(12)
+            grid_layout.setContentsMargins(0, 0, 0, 0)
 
-            empty_layout.addWidget(empty_icon)
-            empty_layout.addWidget(empty_text)
-            empty_widget.setFixedHeight(150)
+            # Добавляем реальные измерения
+            for i, measure in enumerate(recent_real):
+                row = i // 2
+                col = i % 2
+                measure_card = self.create_measurement_card(measure)
+                grid_layout.addWidget(measure_card, row, col)
 
-            self.recent_layout.addWidget(empty_widget)
-            return
+            # Если реальных измерений меньше 4, дополняем статическими
+            if len(recent_real) < 4:
+                start_index = len(recent_real)
+                for i in range(start_index, 4):
+                    row = i // 2
+                    col = i % 2
+                    static_card = self.create_measurement_card(static_measurements[i])
+                    grid_layout.addWidget(static_card, row, col)
 
-        # Show last 3 measurements
-        for measure in measures[-3:]:
-            measure_card = self.create_measurement_card(measure)
-            self.recent_layout.addWidget(measure_card)
+            self.recent_layout.addWidget(grid_widget)
+        else:
+            # Если нет реальных измерений, показываем 4 статические карточки
+            grid_widget = QWidget()
+            grid_layout = QGridLayout(grid_widget)
+            grid_layout.setSpacing(12)
+            grid_layout.setContentsMargins(0, 0, 0, 0)
+
+            for i, measure_data in enumerate(static_measurements):
+                row = i // 2
+                col = i % 2
+                measure_card = self.create_measurement_card(measure_data)
+                grid_layout.addWidget(measure_card, row, col)
+
+            self.recent_layout.addWidget(grid_widget)
 
     def create_measurement_card(self, measure):
-        """Create a measurement card widget"""
+        """Create a measurement card for the home page with graph preview on left"""
         from widgets import ModernCard
+        from PyQt6.QtWidgets import QFrame
 
         card = ModernCard()
-        card.setFixedHeight(100)
+        card.setFixedHeight(140)  # Уменьшаем высоту для компактности
         card.setCursor(Qt.CursorShape.PointingHandCursor)
         card.setStyleSheet("""
             ModernCard {
-                background: rgba(255, 255, 255, 0.05);
+                background: rgba(30, 31, 34, 0.9);
                 border: 1px solid rgba(255, 255, 255, 0.1);
-                border-radius: 10px;
+                border-radius: 12px;
             }
             ModernCard:hover {
-                background: rgba(255, 255, 255, 0.08);
+                background: rgba(40, 41, 44, 0.95);
                 border: 1px solid #7879F1;
             }
         """)
 
         card_layout = QHBoxLayout(card)
-        card_layout.setContentsMargins(20, 15, 20, 15)
+        card_layout.setContentsMargins(15, 15, 15, 15)
         card_layout.setSpacing(15)
 
-        # Method icon based on method type
-        method_icons = {
-            1: "📡", 2: "📏", 3: "🔩", 4: "🌀", 5: "⚡", 6: "🔬"
-        }
-
-        method_id = measure.get('method_id', 1)
-        method_icon = method_icons.get(method_id, "📊")
-
-        icon_widget = WidgetFactory.create_label(
-            method_icon,
-            font_size=28,
-            align="center"
-        )
-        icon_widget.setFixedSize(60, 60)
-        icon_widget.setStyleSheet(f"""
-            background: #7879F1; 
-            color: white;
-            border-radius: 10px;
+        # ЛЕВАЯ ЧАСТЬ: Мини-график (заглушка или реальный график)
+        graph_container = QFrame()
+        graph_container.setFixedSize(160, 100)  # Фиксированный размер для графика
+        graph_container.setStyleSheet(f"""
+            QFrame {{
+                background: {Styles.BACKGROUND_DARK};
+                border-radius: 8px;
+                border: 1px solid rgba(255, 255, 255, 0.1);
+            }}
         """)
 
-        card_layout.addWidget(icon_widget)
+        # Заглушка для графика (можно заменить на реальный график)
+        graph_label = QLabel("📊")
+        graph_label.setStyleSheet("""
+            QLabel {
+                font-size: 24px;
+                color: rgba(255, 255, 255, 0.5);
+                background: transparent;
+            }
+        """)
+        graph_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        # Measurement info
+        graph_layout = QVBoxLayout(graph_container)
+        graph_layout.addWidget(graph_label)
+
+        card_layout.addWidget(graph_container)
+
+        # ПРАВАЯ ЧАСТЬ: Информация об измерении
         info_layout = QVBoxLayout()
         info_layout.setSpacing(6)
+        info_layout.setContentsMargins(0, 0, 0, 0)
 
-        # Title
-        title = WidgetFactory.create_label(
-            f"Исследование #{measure.get('title', 'Unknown')}",
-            font_size=16,
-            bold=True
-        )
-        title.setStyleSheet("color: white;")
-
-        # Time and method
+        # Заголовок измерения
         method_names = {
             1: "ФРЧ", 2: "ФРД", 3: "СО", 4: "СВЧФ", 5: "Метод 5", 6: "Метод 6"
         }
 
+        method_id = measure.get('method_id', 1)
         method_name = method_names.get(method_id, f"Метод {method_id}")
-        time_str = measure.get('time', 'Неизвестно')
 
-        details_label = WidgetFactory.create_label(
-            f"{method_name} • {time_str}",
-            color="rgba(255, 255, 255, 0.7)",
-            font_size=13
+        title = WidgetFactory.create_label(
+            f"{method_name} • #{measure.get('title', 'Unknown')}",
+            font_size=15,
+            bold=True
+        )
+        title.setStyleSheet("color: white;")
+
+        # Время измерения
+        time_str = measure.get('time', 'Неизвестно')
+        time_label = WidgetFactory.create_label(
+            f"📅 {time_str}",
+            color="rgba(255, 255, 255, 0.6)",
+            font_size=12
         )
 
-        # Sample info if available
+        # Информация об образце
         sample_info = WidgetFactory.create_label("")
         if measure.get('y_samples'):
             sample = list(measure['y_samples'].values())[0]
-            sample_info.setText(f"Образец: {sample.get('name', 'Неизвестно')}")
-            sample_info.setStyleSheet("color: rgba(255, 255, 255, 0.7); font-size: 13px;")
+            sample_name = sample.get('name', 'Неизвестно')
+            sample_info.setText(f"📋 {sample_name}")
+            sample_info.setStyleSheet("color: rgba(255, 255, 255, 0.6); font-size: 12px;")
 
+        # Результаты (если есть)
+        results_label = WidgetFactory.create_label("")
+        if measure.get('y_samples'):
+            sample = list(measure['y_samples'].values())[0]
+            if 'tgo' in sample and 'E' in sample:
+                results_label.setText(f"📈 tgδ: {sample['tgo']:.2e} • ε: {sample['E']:.2f}")
+                results_label.setStyleSheet("color: #7879F1; font-size: 11px; font-weight: 600;")
+
+        # Добавляем все элементы
         info_layout.addWidget(title)
-        info_layout.addWidget(details_label)
-        info_layout.addWidget(sample_info)
+        info_layout.addWidget(time_label)
+        if sample_info.text():
+            info_layout.addWidget(sample_info)
+        if results_label.text():
+            info_layout.addWidget(results_label)
+
         info_layout.addStretch()
 
-        card_layout.addLayout(info_layout, 1)
+        card_layout.addLayout(info_layout, 1)  # 1 - растягиваем на всю доступную ширину
 
-        # Connect click
+        # Сделать карточку кликабельной
         card.mousePressEvent = lambda event, mid=measure['id_m']: self.open_measurement(mid, event)
 
         return card
 
     def open_measurement(self, measure_id, event):
-        """Open measurement details"""
+        """Open measurement details (пропускаем для демо-измерений)"""
+        if measure_id.startswith('demo'):
+            print(f"Демо-измерение #{measure_id} - переход невозможен")
+            return
         self.open_measure_callback(measure_id)
 
     def create_report_card(self, title, date, method_type, color):
@@ -588,16 +715,6 @@ class HomePage(BasePage):
         """Open report - в реальном приложении здесь будет переход на страницу отчета"""
         print(f"Opening report: {report_title}")
         # Можно добавить навигацию на страницу отчетов с предвыбранным отчетом
-
-    def show_all_reports(self):
-        """Navigate to reports page"""
-        main_window = self.parent().parent()
-        if main_window:
-            # Находим кнопку "Отчёты" в sidebar
-            for btn in main_window.sidebar.nav_buttons:
-                if "Отчёты" in btn.text():
-                    btn.click()
-                    break
 
     def refresh_page(self):
         """Refresh page content"""

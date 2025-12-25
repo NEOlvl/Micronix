@@ -3,7 +3,7 @@ Measures page - optimized version
 """
 
 from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGridLayout)
+from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel)
 from pages.base_page import BasePage
 from widget_factory import WidgetFactory
 from widgets import HeaderWidget
@@ -82,7 +82,7 @@ class MeasuresPage(BasePage):
         self.layout.addWidget(self.measures_scroll, 1)
 
     def load_measurements(self):
-        """Load and display all measurements"""
+        """Load and display all measurements in 2-column grid"""
         # Clear existing content
         for i in reversed(range(self.measures_layout.count())):
             item = self.measures_layout.itemAt(i)
@@ -96,20 +96,20 @@ class MeasuresPage(BasePage):
             self.show_empty_state()
             return
 
-        # Create grid layout for measurements
+        # Создаем сетку для всех измерений
         grid_widget = QWidget()
         grid_layout = QGridLayout(grid_widget)
-        grid_layout.setSpacing(16)
-        grid_layout.setContentsMargins(0, 0, 0, 0)
+        grid_layout.setSpacing(15)
+        grid_layout.setContentsMargins(0, 0, 0, 20)
 
-        # Add measurement cards to grid
+        # Добавляем все измерения в сетку 2 колонки
         for i, measure in enumerate(measures):
             row = i // 2
             col = i % 2
             measure_card = self.create_measurement_card(measure)
             grid_layout.addWidget(measure_card, row, col)
 
-        # Add grid to scroll area
+        # Добавляем сетку в скролл
         self.measures_layout.addWidget(grid_widget)
 
     def show_empty_state(self):
@@ -123,57 +123,80 @@ class MeasuresPage(BasePage):
         self.measures_layout.addWidget(empty_label)
 
     def create_measurement_card(self, measure):
-        """Create a measurement card for the list view"""
+        """Create a measurement card for the list view - обновленный дизайн"""
         from widgets import ModernCard
+        from PyQt6.QtWidgets import QFrame
 
         card = ModernCard()
-        card.setFixedHeight(180)
+        card.setFixedHeight(160)  # Чуть больше для страницы измерений
+        card.setCursor(Qt.CursorShape.PointingHandCursor)
 
         card_layout = QHBoxLayout(card)
-        card_layout.setContentsMargins(20, 20, 20, 20)
-        card_layout.setSpacing(20)
+        card_layout.setContentsMargins(15, 15, 15, 15)
+        card_layout.setSpacing(15)
 
-        # Graph preview
-        graph_container = QWidget()
-        graph_container.setFixedSize(240, 120)
+        # ЛЕВАЯ ЧАСТЬ: График
+        graph_container = QFrame()
+        graph_container.setFixedSize(180, 120)
         graph_container.setStyleSheet(f"""
-            background: {Styles.BACKGROUND_DARK};
-            border-radius: 8px;
+            QFrame {{
+                background: {Styles.BACKGROUND_DARK};
+                border-radius: 8px;
+                border: 1px solid rgba(255, 255, 255, 0.1);
+            }}
         """)
 
-        # Placeholder for graph - you can use your original graph code here
-        graph_label = WidgetFactory.create_label(
-            "📈",
-            font_size=24,
-            align="center"
-        )
+        # Заглушка графика
+        graph_label = QLabel("📈")
+        graph_label.setStyleSheet("""
+            QLabel {
+                font-size: 32px;
+                color: rgba(255, 255, 255, 0.5);
+                background: transparent;
+            }
+        """)
+        graph_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
         graph_layout = QVBoxLayout(graph_container)
         graph_layout.addWidget(graph_label)
 
         card_layout.addWidget(graph_container)
 
-        # Measurement info
+        # ПРАВАЯ ЧАСТЬ: Детальная информация
         info_layout = QVBoxLayout()
-        info_layout.setSpacing(12)
+        info_layout.setSpacing(8)
+        info_layout.setContentsMargins(0, 0, 0, 0)
 
-        # Title
+        # Заголовок
+        method_names = {
+            1: "Метод фиксированной частоты",
+            2: "Метод фиксированной длины",
+            3: "Метод для стержневых образцов",
+            4: "Метод для СВЧ ферритов"
+        }
+
+        method_id = measure.get('method_id', 1)
+        method_title = method_names.get(method_id, f"Метод {method_id}")
+
         title = WidgetFactory.create_label(
-            "Метод объёмного резонатора",
+            method_title,
             font_size=16,
             bold=True
         )
+        title.setStyleSheet("color: white;")
 
-        # Measurement ID and time
-        measure_id = WidgetFactory.create_label(
-            f"#{measure['title']} - {measure['time']}",
+        # ID и время
+        measure_id_label = WidgetFactory.create_label(
+            f"#{measure['title']} • {measure['time']}",
             color=Styles.TEXT_SECONDARY,
             font_size=13
         )
 
-        # Sample results
+        # Результаты образцов
         if measure.get('y_samples'):
             for sample_idx, sample in measure['y_samples'].items():
-                result_text = f"tgδ: {sample['tgo']:.8f} • ε: {sample['E']:.3f}"
+                sample_name = sample.get('name', f"Образец {sample_idx}")
+                result_text = f"{sample_name}: tgδ={sample.get('tgo', 0):.2e}, ε={sample.get('E', 0):.2f}"
                 result_label = WidgetFactory.create_label(
                     result_text,
                     color="rgba(255, 255, 255, 0.8)",
@@ -181,14 +204,14 @@ class MeasuresPage(BasePage):
                 )
                 info_layout.addWidget(result_label)
 
+        # Добавляем элементы
         info_layout.addWidget(title)
-        info_layout.addWidget(measure_id)
+        info_layout.addWidget(measure_id_label)
         info_layout.addStretch()
 
         card_layout.addLayout(info_layout, 1)
 
-        # Make card clickable
-        card.setCursor(Qt.CursorShape.PointingHandCursor)
+        # Кликабельность
         card.mousePressEvent = lambda event, mid=measure['id_m']: self.open_measurement(mid, event)
 
         return card

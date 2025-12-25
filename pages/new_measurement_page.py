@@ -98,7 +98,9 @@ class NewMeasurementPage(BasePage):
                 1: "ФРЧ - Метод фиксированной частоты",
                 2: "ФРД - Метод фиксированной длины",
                 3: "СО - Метод для стержневых образцов",
-                4: "СВЧФ - Метод для СВЧ ферритов"
+                4: "СВЧФ - Метод для СВЧ ферритов",
+                5: "Метод 5",  # НОВЫЙ МЕТОД
+                6: "Метод 6"  # НОВЫЙ МЕТОД
             }
 
             selected_text = WidgetFactory.create_label(
@@ -110,31 +112,34 @@ class NewMeasurementPage(BasePage):
             selected_text.setStyleSheet("margin-bottom: 10px;")
             parent_layout.addWidget(selected_text)
 
-        # Method cards grid
+        # Method cards grid - теперь 3 карточки в 2 ряда = 6 карточки
         grid_widget = QWidget()
         grid_layout = QGridLayout(grid_widget)
         grid_layout.setSpacing(15)
         grid_layout.setContentsMargins(0, 0, 0, 0)
 
-        # Method cards (остальной код создания карточек остается)
+        # Method cards - всего 6 методов (теперь только 3 значения)
         methods = [
-            (1, "ФРЧ", "Метод фиксированной частоты", "#7879F1"),
-            (2, "ФРД", "Метод фиксированной длины", "#9A9BFF"),
-            (3, "СО", "Метод для стержневых образцов", "#f8c33c"),
-            (4, "СВЧФ", "Метод для СВЧ ферритов", "#6A6BE1")
+            (1, "ФРЧ", "Метод фиксированной частоты"),
+            (2, "ФРД", "Метод фиксированной длины"),
+            (3, "СО", "Метод для стержневых образцов"),
+            (4, "СВЧФ", "Метод для СВЧ ферритов"),
+            (5, "Метод 5", "Описание метода 5"),
+            (6, "Метод 6", "Описание метода 6")
         ]
 
-        for i, (method_id, name, description, color) in enumerate(methods):
-            row = i // 2
-            col = i % 2
-            card = self.create_method_card(method_id, name, description, color)
+        for i, (method_id, name, description) in enumerate(methods):  # Только 3 значения
+            row = i // 3  # 3 карточки в ряд
+            col = i % 3
+            # Всегда передаем фиолетовый цвет (#7879F1)
+            card = self.create_method_card(method_id, name, description, "#7879F1")
             # Сохраняем ID метода в карточке
             card.method_id = method_id
             grid_layout.addWidget(card, row, col)
 
         parent_layout.addWidget(grid_widget)
 
-    def create_method_card(self, method_id, name, description, color):
+    def create_method_card(self, method_id, name, description, color="#7879F1"):
         """Create a method selection card"""
         card = ModernCard()
         card.setMinimumHeight(140)
@@ -143,12 +148,15 @@ class NewMeasurementPage(BasePage):
         # Сохраняем ID метода в объекте карточки
         card.method_id = method_id
 
+        # ВСЕГДА используем один цвет для обводки и текста - фиолетовый как у первого метода
+        primary_color = "#7879F1"  # Фиксированный цвет для всего
+
         # Highlight if selected
         if method_id == self.selected_method:
             card.setStyleSheet(f"""
                 ModernCard {{
                     background: rgba(40, 41, 44, 0.9);
-                    border: 2px solid {color};
+                    border: 2px solid {primary_color};
                     border-radius: 12px;
                 }}
             """)
@@ -165,33 +173,21 @@ class NewMeasurementPage(BasePage):
         card_layout.setContentsMargins(20, 20, 20, 20)
         card_layout.setSpacing(10)
 
-        # Method header
+        # Method header - БЕЗ бейджа в правом углу
         header_layout = QHBoxLayout()
 
+        # Все названия методов одним цветом - фиолетовым
         method_name = QLabel(name)
         method_name.setStyleSheet(f"""
             QLabel {{
-                color: {color};
+                color: {primary_color};  # ВСЕГДА фиолетовый цвет
                 font-size: 18px;
                 font-weight: 600;
             }}
         """)
 
-        method_badge = QLabel(f"Метод {method_id}")
-        method_badge.setStyleSheet(f"""
-            QLabel {{
-                color: {color};
-                font-size: 12px;
-                font-weight: 600;
-                background: {color}22;
-                padding: 4px 8px;
-                border-radius: 4px;
-            }}
-        """)
-
         header_layout.addWidget(method_name)
-        header_layout.addStretch()
-        header_layout.addWidget(method_badge)
+        header_layout.addStretch()  # Добавляем растяжку чтобы название было слева
 
         # Description
         method_desc = QLabel(description)
@@ -208,7 +204,7 @@ class NewMeasurementPage(BasePage):
         card_layout.addWidget(method_desc)
         card_layout.addStretch()
 
-        # Connect click - теперь используем метод select_method
+        # Connect click
         card.mousePressEvent = lambda e, mid=method_id: self.select_method(mid)
 
         return card
@@ -220,7 +216,9 @@ class NewMeasurementPage(BasePage):
             1: "ФРЧ - Метод фиксированной частоты",
             2: "ФРД - Метод фиксированной длины",
             3: "СО - Метод для стержневых образцов",
-            4: "СВЧФ - Метод для СВЧ ферритов"
+            4: "СВЧФ - Метод для СВЧ ферритов",
+            5: "Метод 5",  # НОВЫЙ
+            6: "Метод 6"   # НОВЫЙ
         }
 
         title = WidgetFactory.create_label(
@@ -342,11 +340,23 @@ class NewMeasurementPage(BasePage):
             self.form_combo = QComboBox()
             self.form_combo.addItems(["Стержень", "Квадратная"])
             self.form_combo.setStyleSheet(Styles.INPUT_FIELD)
-
             self.mp_input = WidgetFactory.create_input("0.5")
-
             layout.addRow("Форма образца:", self.form_combo)
             layout.addRow("Поперечная составляющая МП:", self.mp_input)
+
+        elif self.selected_method == 5:  # НОВЫЙ МЕТОД 5
+            # TODO: Добавить параметры для метода 5
+            self.param1_input = WidgetFactory.create_input("Значение 1")
+            self.param2_input = WidgetFactory.create_input("Значение 2")
+            layout.addRow("Параметр 1:", self.param1_input)
+            layout.addRow("Параметр 2:", self.param2_input)
+
+        elif self.selected_method == 6:  # НОВЫЙ МЕТОД 6
+            # TODO: Добавить параметры для метода 6
+            self.paramA_input = WidgetFactory.create_input("Значение A")
+            self.paramB_input = WidgetFactory.create_input("Значение B")
+            layout.addRow("Параметр A:", self.paramA_input)
+            layout.addRow("Параметр B:", self.paramB_input)
 
         return group
 
@@ -381,10 +391,8 @@ class NewMeasurementPage(BasePage):
             self.index_combo.addItems(["2", "3", "4", "5"])
             self.index_combo.setCurrentText("2")
             self.index_combo.setStyleSheet(Styles.INPUT_FIELD)
-
             self.d_res_input = WidgetFactory.create_input("50.0")
             self.h_res_input = WidgetFactory.create_input("90.0")
-
             layout.addRow("Продольный индекс колебаний:", self.index_combo)
             layout.addRow("Диаметр резонатора (мм):", self.d_res_input)
             layout.addRow("Высота резонатора (мм):", self.h_res_input)
@@ -392,14 +400,22 @@ class NewMeasurementPage(BasePage):
         elif self.selected_method == 4:
             self.d_res_input = WidgetFactory.create_input("11.0")
             self.d_sample_input = WidgetFactory.create_input("0.81")
-
             layout.addRow("Радиус резонатора (мм):", self.d_res_input)
             layout.addRow("Радиус образца (мм):", self.d_sample_input)
 
-        # Environmental parameters
+        elif self.selected_method == 5:  # НОВЫЙ МЕТОД 5
+            # TODO: Добавить дополнительные параметры для метода 5
+            self.special_param = WidgetFactory.create_input("Специальный параметр")
+            layout.addRow("Специальный параметр:", self.special_param)
+
+        elif self.selected_method == 6:  # НОВЫЙ МЕТОД 6
+            # TODO: Добавить дополнительные параметры для метода 6
+            self.advanced_param = WidgetFactory.create_input("Продвинутый параметр")
+            layout.addRow("Продвинутый параметр:", self.advanced_param)
+
+        # Environmental parameters (общие для всех)
         self.temp_input = WidgetFactory.create_input("25.0")
         self.humidity_input = WidgetFactory.create_input("50.0")
-
         layout.addRow("Температура (°C):", self.temp_input)
         layout.addRow("Влажность (%):", self.humidity_input)
 
@@ -446,13 +462,16 @@ class NewMeasurementPage(BasePage):
         if grid_widget:
             for child in grid_widget.findChildren(QWidget):
                 if child.__class__.__name__ == "ModernCard" and hasattr(child, 'method_id'):
+                    # Всегда используем один цвет для выделения
+                    border_color = "#7879F1"
+
                     # Проверяем, это ли метод выбран
                     if child.method_id == self.selected_method:
-                        # Выделяем выбранную карточку
+                        # Выделяем выбранную карточку фиолетовым
                         child.setStyleSheet(f"""
                             ModernCard {{
                                 background: rgba(40, 41, 44, 0.9);
-                                border: 2px solid #7879F1;
+                                border: 2px solid {border_color};
                                 border-radius: 12px;
                             }}
                         """)
@@ -585,6 +604,18 @@ class NewMeasurementPage(BasePage):
                 "mp": self.mp_input.text() if hasattr(self, 'mp_input') else "0.5",
                 "d_res": self.d_res_input.text() if hasattr(self, 'd_res_input') else "11.0",
                 "d_sample": self.d_sample_input.text() if hasattr(self, 'd_sample_input') else "0.81"
+            }
+        elif self.selected_method == 5:  # НОВЫЙ МЕТОД 5
+            data["data"][str(self.selected_method)] = {
+                "param1": self.param1_input.text() if hasattr(self, 'param1_input') else "",
+                "param2": self.param2_input.text() if hasattr(self, 'param2_input') else "",
+                "special_param": self.special_param.text() if hasattr(self, 'special_param') else ""
+            }
+        elif self.selected_method == 6:  # НОВЫЙ МЕТОД 6
+            data["data"][str(self.selected_method)] = {
+                "paramA": self.paramA_input.text() if hasattr(self, 'paramA_input') else "",
+                "paramB": self.paramB_input.text() if hasattr(self, 'paramB_input') else "",
+                "advanced_param": self.advanced_param.text() if hasattr(self, 'advanced_param') else ""
             }
 
         return data
