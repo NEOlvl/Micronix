@@ -1,7 +1,8 @@
 """
 Backend for FERRO application
 """
-
+import json
+import os
 import random
 import numpy as np
 from datetime import datetime
@@ -115,3 +116,35 @@ class FERROBackend:
                 return list(self.measures.values())[0]
 
         return {}
+
+    def get_measurement_json(self, measure_id):
+        """Get JSON data for specific measurement"""
+        try:
+            # Здесь должна быть логика получения JSON данных
+            # Для демо вернем пример данных
+
+            # Ищем файл в data_ferro
+            data_dir = "data_ferro"
+            if os.path.exists(data_dir):
+                # Ищем файлы, содержащие ID измерения
+                json_files = [f for f in os.listdir(data_dir)
+                              if f.endswith('.json') and str(measure_id) in f]
+
+                if json_files:
+                    file_path = os.path.join(data_dir, json_files[0])
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        return json.load(f)
+
+            # Если файл не найден, вернем пример данных
+            return self.get_sample_json_data()
+
+        except Exception as e:
+            print(f"Error getting measurement JSON: {e}")
+            return None
+
+    def list_json_files(self):
+        """List all available JSON files"""
+        data_dir = "data_ferro"
+        if os.path.exists(data_dir):
+            return [f for f in os.listdir(data_dir) if f.endswith('.json')]
+        return []

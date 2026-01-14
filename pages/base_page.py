@@ -25,6 +25,15 @@ class BasePage(QWidget):
         if self.title:
             self.add_header()
 
+    def get_main_window(self):
+        """Получить ссылку на главное окно"""
+        parent = self.parent()
+        while parent:
+            if hasattr(parent, 'open_new_measurement_page'):
+                return parent
+            parent = parent.parent()
+        return None
+
     def add_header(self, title=None, subtitle=None):
         """Add page header"""
         title = title or self.title

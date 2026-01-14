@@ -4,6 +4,8 @@ Method card widget with modern design - UPDATED VERSION for smaller cards
 
 from PyQt6.QtCore import Qt, pyqtSignal, QTimer
 from PyQt6.QtWidgets import QVBoxLayout, QLabel, QHBoxLayout, QWidget, QSpacerItem, QSizePolicy
+from PyQt6.QtSvgWidgets import QSvgWidget
+import os
 from .modern_card import ModernCard
 from styles import Styles
 
@@ -64,7 +66,8 @@ class MethodCard(ModernCard):
         spacer = QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
 
         # Категория внизу
-        category_color = "#7879F1" if category == "Диэлектрики" else "#FF6B6B"
+        # category_color = "#7879F1" if category == "Диэлектрики" else "#FF6B6B"
+        category_color = "#ffffff"
         category_label = QLabel(category)
         category_label.setStyleSheet(f"""
             QLabel {{
@@ -84,16 +87,50 @@ class MethodCard(ModernCard):
         text_layout.addSpacerItem(spacer)  # Spacer выталкивает категорию вниз
         text_layout.addWidget(category_label)
 
-        # ПРАВАЯ ЧАСТЬ: Пустое пространство или минимальный индикатор
+        # ПРАВАЯ ЧАСТЬ: SVG изображение в зависимости от категории
         right_container = QWidget()
-        right_container.setFixedSize(150, 120)
-        right_container.setStyleSheet(f"""
-            QWidget {{
-                background: {category_color};
-                border-radius: 6px;
-                opacity: 0.7;
-            }}
-        """)
+        right_layout = QVBoxLayout(right_container)
+        right_layout.setContentsMargins(0, 0, 0, 0)
+
+        # Определяем путь к SVG файлу в зависимости от категории
+        svg_filename = "method_dielectr.svg" if category == "Диэлектрики" else "method_ferr.svg"
+        svg_path = os.path.join("img", svg_filename)  # Или "assets", в зависимости от вашей структуры
+
+        # Создаем SVG виджет
+        svg_widget = QSvgWidget()
+
+        # Проверяем, существует ли файл, иначе используем альтернативный вариант
+        if os.path.exists(svg_path):
+            svg_widget.load(svg_path)
+        else:
+            # Альтернатива: создаем простую иконку из текста
+            svg_widget = QLabel("⚡" if category == "Диэлектрики" else "🧲")
+            svg_widget.setStyleSheet(f"""
+                QLabel {{
+                    font-size: 48px;
+                    color: {category_color};
+                    background: transparent;
+                }}
+            """)
+            svg_widget.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        # Настройка размера и внешнего вида
+        if isinstance(svg_widget, QSvgWidget):
+            svg_widget.setFixedSize(120, 120)  # Фиксированный размер для SVG
+            svg_widget.setStyleSheet(f"""
+                QSvgWidget {{
+                    background: transparent;
+                }}
+            """)
+        else:
+            svg_widget.setFixedSize(120, 120)
+
+        right_layout.addWidget(svg_widget)
+
+        # Для центрирования SVG по вертикали
+        right_layout.addStretch()
+        right_layout.addWidget(svg_widget)
+        right_layout.addStretch()
 
         main_layout.addWidget(text_container, 1)  # Занимает всё доступное пространство
         main_layout.addWidget(right_container)

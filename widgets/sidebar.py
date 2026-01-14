@@ -5,6 +5,8 @@ Sidebar widget - красивая версия с фиолетовой цвет�
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QFrame,
                              QPushButton, QLabel, QSpacerItem, QSizePolicy)
+from PyQt6.QtSvgWidgets import QSvgWidget
+import os
 from styles import Styles
 
 
@@ -15,6 +17,7 @@ class SidebarWidget(QWidget):
         super().__init__(parent)
         self.setFixedWidth(260)
         self.active_button = None
+        self.icon_size = 24
         self.setup_ui()
 
     def setup_ui(self):
@@ -55,22 +58,22 @@ class SidebarWidget(QWidget):
         # Logo with icon
         logo_layout = QHBoxLayout()
 
-        # Logo icon - микроволновая печь/антенна
-        icon_label = QLabel("⚡")
-        icon_label.setStyleSheet(f"""
-            QLabel {{
-                color: {Styles.PRIMARY_LIGHT};
-                font-size: 28px;
-                background: transparent;
-                text-decoration: none;
-                border: none;
-                padding: 0;
-            }}
-        """)
-        icon_label.setProperty("class", "logo-icon")
+        # Logo icon - SVG из папки img
+        icon_widget = self.load_svg("menu-burger.svg", size=28)
+
+        # Если это QSvgWidget, нужно обернуть его в QWidget для центрирования
+        if isinstance(icon_widget, QSvgWidget):
+            icon_container = QWidget()
+            icon_container.setFixedSize(28, 28)
+            icon_layout = QVBoxLayout(icon_container)
+            icon_layout.setContentsMargins(0, 0, 0, 0)
+            icon_layout.addWidget(icon_widget)
+            logo_layout.addWidget(icon_container)
+        else:
+            logo_layout.addWidget(icon_widget)
 
         # Logo text
-        logo_text = QLabel("FERRO")
+        logo_text = QLabel(" MICRONIX")
         logo_text.setStyleSheet("""
             QLabel {
                 color: white;
@@ -86,7 +89,6 @@ class SidebarWidget(QWidget):
         """)
         logo_text.setProperty("class", "logo-text")
 
-        logo_layout.addWidget(icon_label)
         logo_layout.addWidget(logo_text)
         logo_layout.addStretch()
 
@@ -128,17 +130,17 @@ class SidebarWidget(QWidget):
             "lavender": "#B19BFF",  # Лавандовый
         }
 
-        # Main navigation items с иконками и оттенками фиолетового
+        # Main navigation items с SVG иконками
         nav_items = [
-            ("Главная", "🏠", colors["main"]),
-            ("Новое исследование", "⚡", colors["main"]),
-            ("Измерения", "📊", colors["main"]),
-            ("Отчёты", "📄", colors["main"])
+            ("Главная", "home.svg", colors["main"]),
+            ("Новое исследование", "plan.svg", colors["main"]),
+            ("Измерения", "metric.svg", colors["main"]),
+            ("Отчёты", "document.svg", colors["main"])
         ]
 
         self.nav_buttons = []
-        for i, (text, icon, color) in enumerate(nav_items):
-            btn = self.create_nav_button(text, icon, color)
+        for i, (text, icon_filename, color) in enumerate(nav_items):
+            btn = self.create_nav_button(text, icon_filename, color)
             btn.setProperty("nav_index", i)
             btn.setProperty("button_color", color)  # Сохраняем цвет в свойствах
             nav_layout.addWidget(btn)
@@ -153,28 +155,94 @@ class SidebarWidget(QWidget):
 
         parent_layout.addWidget(nav_container)
 
-    def create_nav_button(self, text, icon, color):
+    def load_svg(self, filename, size=None):
+        """Загрузка SVG изображения из папки img"""
+        if size is None:
+            size = self.icon_size
+
+        # Получаем корень проекта (на один уровень выше widgets)
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        svg_path = os.path.join(project_root, "img", filename)
+
+        if os.path.exists(svg_path):
+            svg_widget = QSvgWidget(svg_path)
+            svg_widget.setFixedSize(size, size)
+            svg_widget.setStyleSheet("QSvgWidget { background: transparent; }")
+            return svg_widget
+        else:
+            # Fallback: создаем QLabel с текстовым символом
+            fallback_text = {
+                "home.svg": "🏠",
+                "metric.svg": "📊",
+                "document.svg": "📄",
+                "menu-burger.svg": "☰",
+                "users.svg": "👤",  # Для пользователя
+                "settings.svg": "⚙",  # Для настроек
+                "plan.svg": "📋"  # Для "Новое исследование"
+            }
+            label = QLabel(fallback_text.get(filename, "📁"))
+            label.setStyleSheet(f"""
+                QLabel {{
+                    font-size: {size}px;
+                    background: transparent;
+                    color: {Styles.TEXT_SECONDARY};
+                }}
+            """)
+            label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            return label
+
+    def create_nav_button(self, text, icon_filename, color):
         """Create a stylish navigation button"""
-        btn = QPushButton(f"  {icon}  {text}")
+        # Создаем пустую кнопку без текста
+        btn = QPushButton()
         btn.setFixedHeight(52)
         btn.setCursor(Qt.CursorShape.PointingHandCursor)
+
+        # Создаем layout для кнопки с иконкой
+        btn_layout = QHBoxLayout(btn)
+        btn_layout.setContentsMargins(20, 0, 20, 0)
+        btn_layout.setSpacing(12)
+
+        # Загружаем SVG иконку
+        icon_widget = self.load_svg(icon_filename)
+
+        # Если это QSvgWidget, нужно обернуть его для центрирования
+        if isinstance(icon_widget, QSvgWidget):
+            icon_container = QWidget()
+            icon_container.setFixedSize(self.icon_size, self.icon_size)
+            icon_container_layout = QVBoxLayout(icon_container)
+            icon_container_layout.setContentsMargins(0, 0, 0, 0)
+            icon_container_layout.addWidget(icon_widget)
+            btn_layout.addWidget(icon_container)
+        else:
+            btn_layout.addWidget(icon_widget)
+
+        # Текст
+        text_label = QLabel(text)
+        text_label.setStyleSheet(f"""
+            QLabel {{
+                color: {Styles.TEXT_SECONDARY};
+                font-size: 14px;
+                font-weight: 500;
+                background: transparent;
+            }}
+        """)
+
+        btn_layout.addWidget(text_label)
+        btn_layout.addStretch()
 
         # Base style
         btn.setStyleSheet(f"""
             QPushButton {{
                 background: transparent;
-                color: {Styles.TEXT_SECONDARY};
                 border: none;
                 text-align: left;
-                padding-left: 20px;
-                font-size: 14px;
-                font-weight: 500;
+                padding: 0;
                 border-radius: 10px;
                 margin: 2px 5px;
             }}
             QPushButton:hover {{
                 background: rgba(255, 255, 255, 0.05);
-                color: {color};
             }}
         """)
 
@@ -206,14 +274,14 @@ class SidebarWidget(QWidget):
         separator.setFixedHeight(1)
         footer_layout.addWidget(separator)
 
-        # Settings button
+        # Settings button - используем эмодзи
         settings_btn = self.create_settings_button()
         footer_layout.addWidget(settings_btn)
 
         parent_layout.addWidget(footer)
 
     def create_user_widget(self):
-        """Create user info widget"""
+        """Create user info widget с SVG иконкой"""
         user_widget = QWidget()
         user_widget.setStyleSheet("background: transparent;")
 
@@ -221,30 +289,13 @@ class SidebarWidget(QWidget):
         user_layout.setContentsMargins(5, 0, 5, 0)
         user_layout.setSpacing(12)
 
-        # User avatar
-        avatar = QLabel("👤")
-        avatar.setStyleSheet(f"""
-            QLabel {{
-                font-size: 32px;
-                background: {Styles.PRIMARY};
-                border-radius: 20px;
-                padding: 8px;
-                min-width: 40px;
-                min-height: 40px;
-                max-width: 40px;
-                max-height: 40px;
-            }}
-        """)
-        avatar.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        # User avatar - SVG из папки img
+        avatar_widget = self.load_svg("users.svg", size=28)  # Заменяем эмодзи на SVG
 
-        # User info
-        info_widget = QWidget()
-        info_layout = QVBoxLayout(info_widget)
-        info_layout.setContentsMargins(0, 0, 0, 0)
-        info_layout.setSpacing(4)
-
-        user_name = QLabel("Пользователь")
-        user_name.setStyleSheet(f"""
+        # УБИРАЕМ контейнер с фиолетовым фоном - просто добавляем иконку
+        # Текст
+        text_label = QLabel("Пользователь")
+        text_label.setStyleSheet(f"""
             QLabel {{
                 color: {Styles.TEXT_PRIMARY};
                 font-size: 14px;
@@ -256,8 +307,9 @@ class SidebarWidget(QWidget):
             }}
         """)
 
-        user_role = QLabel("Оператор")
-        user_role.setStyleSheet(f"""
+        # Role
+        role_label = QLabel("Оператор")
+        role_label.setStyleSheet(f"""
             QLabel {{
                 color: {Styles.TEXT_SECONDARY};
                 font-size: 12px;
@@ -269,20 +321,51 @@ class SidebarWidget(QWidget):
             }}
         """)
 
-        info_layout.addWidget(user_name)
-        info_layout.addWidget(user_role)
+        # Создаем layout для текста
+        text_layout = QVBoxLayout()
+        text_layout.setContentsMargins(0, 0, 0, 0)
+        text_layout.setSpacing(2)
+        text_layout.addWidget(text_label)
+        text_layout.addWidget(role_label)
 
-        user_layout.addWidget(avatar)
-        user_layout.addWidget(info_widget)
+        user_layout.addWidget(avatar_widget)
+        user_layout.addLayout(text_layout)
         user_layout.addStretch()
 
         return user_widget
 
     def create_settings_button(self):
-        """Create settings button"""
-        btn = QPushButton("  ⚙  Настройки")
+        """Create settings button с SVG иконкой"""
+        # Создаем пустую кнопку
+        btn = QPushButton()
         btn.setFixedHeight(48)
         btn.setCursor(Qt.CursorShape.PointingHandCursor)
+
+        # Создаем layout для кнопки
+        btn_layout = QHBoxLayout(btn)
+        btn_layout.setContentsMargins(20, 0, 20, 0)
+        btn_layout.setSpacing(12)
+
+        # SVG иконка для настроек
+        icon_widget = self.load_svg("settings.svg", size=self.icon_size)
+
+        # Для QSvgWidget не вызываем setAlignment
+        # Для QLabel (fallback) setAlignment уже вызван в load_svg()
+
+        # Текст
+        text_label = QLabel("Настройки")
+        text_label.setStyleSheet(f"""
+            QLabel {{
+                color: {Styles.TEXT_SECONDARY};
+                font-size: 14px;
+                font-weight: 500;
+                background: transparent;
+            }}
+        """)
+
+        btn_layout.addWidget(icon_widget)
+        btn_layout.addWidget(text_label)
+        btn_layout.addStretch()
 
         btn.setStyleSheet(f"""
             QPushButton {{
@@ -290,7 +373,7 @@ class SidebarWidget(QWidget):
                 color: {Styles.TEXT_SECONDARY};
                 border: 1px solid {Styles.BORDER_LIGHT};
                 text-align: left;
-                padding-left: 20px;
+                padding: 0;
                 font-size: 14px;
                 font-weight: 500;
                 border-radius: 10px;
@@ -298,7 +381,6 @@ class SidebarWidget(QWidget):
             }}
             QPushButton:hover {{
                 background: rgba(255, 255, 255, 0.08);
-                color: {Styles.PRIMARY_LIGHT};
                 border: 1px solid {Styles.PRIMARY};
             }}
         """)
@@ -309,21 +391,27 @@ class SidebarWidget(QWidget):
         """Set button as active (highlighted)"""
         if self.active_button:
             # Reset previous active button
+            if hasattr(self.active_button, 'text_label'):
+                self.active_button.text_label.setStyleSheet(f"""
+                    QLabel {{
+                        color: {Styles.TEXT_SECONDARY};
+                        font-size: 14px;
+                        font-weight: 500;
+                        background: transparent;
+                    }}
+                """)
+
             self.active_button.setStyleSheet(f"""
                 QPushButton {{
                     background: transparent;
-                    color: {Styles.TEXT_SECONDARY};
                     border: none;
                     text-align: left;
-                    padding-left: 20px;
-                    font-size: 14px;
-                    font-weight: 500;
+                    padding: 0;
                     border-radius: 10px;
                     margin: 2px 5px;
                 }}
                 QPushButton:hover {{
                     background: rgba(255, 255, 255, 0.05);
-                    color: {self.active_button.property("button_color") or Styles.PRIMARY_LIGHT};
                 }}
             """)
 
@@ -334,21 +422,27 @@ class SidebarWidget(QWidget):
             color = Styles.PRIMARY_LIGHT
 
         # Highlight new active button
+        if hasattr(button, 'text_label'):
+            button.text_label.setStyleSheet(f"""
+                QLabel {{
+                    color: {Styles.TEXT_PRIMARY};
+                    font-size: 14px;
+                    font-weight: 600;
+                    background: transparent;
+                }}
+            """)
+
         button.setStyleSheet(f"""
             QPushButton {{
                 background: {color};
-                color: {Styles.TEXT_PRIMARY};
                 border: 1px solid {color};
                 text-align: left;
-                padding-left: 20px;
-                font-size: 14px;
-                font-weight: 600;
+                padding: 0;
                 border-radius: 10px;
                 margin: 2px 5px;
             }}
             QPushButton:hover {{
                 background: {color};
-                color: {Styles.TEXT_PRIMARY};
             }}
         """)
 

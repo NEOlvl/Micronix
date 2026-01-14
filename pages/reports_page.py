@@ -13,8 +13,9 @@ from styles import Styles
 class ReportsPage(BasePage):
     """Reports page - optimized"""
 
-    def __init__(self, parent=None):
+    def __init__(self, main_window=None, parent=None):  # Добавляем параметр main_window
         super().__init__("", "", parent)
+        self.main_window = main_window  # Сохраняем ссылку на главное окно
 
         # Clear default layout
         self.clear_layout()
@@ -34,6 +35,16 @@ class ReportsPage(BasePage):
     def setup_custom_header(self):
         """Setup custom header"""
         self.header = HeaderWidget("Отчёты", "", self)
+
+        # Используем сохраненную ссылку на главное окно
+        if self.main_window and hasattr(self.main_window, 'open_new_measurement_page'):
+            # Подключаем кнопку "Новое исследование" в хедере
+            self.header.new_measure_btn.clicked.connect(
+                lambda: self.main_window.open_new_measurement_page()
+            )
+        else:
+            print("Предупреждение: Главное окно не передано в ReportsPage")
+
         self.layout.addWidget(self.header)
 
     def setup_search_bar(self):

@@ -65,7 +65,6 @@ class HeaderWidget(QWidget):
         """
         super().__init__(parent)
         self._init_variables()
-        # ФИКС: не передаем subtitle дальше, если он содержит "исследование" в любом регистре
         normalized_subtitle = subtitle.lower() if subtitle else ""
         if "исследование" in normalized_subtitle:
             self.setup_ui(title, "", breadcrumbs=None)
@@ -94,7 +93,7 @@ class HeaderWidget(QWidget):
 
         # Title section
         title_section = self._create_title_section(title, subtitle, breadcrumbs)
-        top_row.addLayout(title_section, 1)  # Stretch
+        top_row.addLayout(title_section, 1)
 
         # Action buttons section
         self._setup_action_buttons(top_row)
@@ -286,7 +285,6 @@ class HeaderWidget(QWidget):
             self.title_label.setText(title)
 
         if subtitle is not None:
-            # ФИКС: Не показываем подзаголовок если он содержит слово "исследование"
             if "исследование" in subtitle.lower():
                 if self.subtitle_label:
                     self.subtitle_label.hide()

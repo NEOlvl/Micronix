@@ -51,39 +51,29 @@ class HomePage(BasePage):
                 item.widget().deleteLater()
 
     def setup_custom_header(self):
-        """Setup custom purple header - ОСТАВЛЯЕМ БЕЗ ИЗМЕНЕНИЙ"""
-        self.header = HeaderWidget("Главная", "Добро пожаловать в FERRO", self)
+        """Setup custom purple header - ПРАВИЛЬНОЕ ПРОДОЛЖЕНИЕ САЙДБАРА"""
+        # Создаем пустой header без текста
+        self.header = QWidget()
 
-        # Делаем header полностью фиолетовым
+        # Высота должна быть такой же как header сайдбара - 100px
+        self.header.setFixedHeight(100)
+
+        # Убираем все отступы у header
+        self.header.setContentsMargins(0, 0, 0, 0)
+
+        # Делаем header полностью фиолетовым - точное продолжение сайдбара
         self.header.setStyleSheet(f"""
-            HeaderWidget {{
+            QWidget {{
                 background: #7879F1;
-                border-bottom: none;
-            }}
-
-            QLabel {{
-                color: white !important;
-            }}
-
-            QPushButton {{
-                background: rgba(255, 255, 255, 0.2);
-                color: white;
-                border: 1px solid rgba(255, 255, 255, 0.3);
-                border-radius: 6px;
-                padding: 10px 20px;
-                font-weight: 600;
-            }}
-
-            QPushButton:hover {{
-                background: rgba(255, 255, 255, 0.3);
-                border: 1px solid rgba(255, 255, 255, 0.4);
+                border: none;
+                margin: 0;
+                padding: 0;
             }}
         """)
 
-        # Прячем кнопку "Новое исследование" в header - она есть в сайдбаре
-        self.header.new_measure_btn.hide()
-
+        # Добавляем в layout без отступов
         self.layout.addWidget(self.header)
+        self.layout.setContentsMargins(0, 0, 0, 0)  # Убираем отступы у основного layout
 
     def setup_scrollable_content(self):
         """Setup scrollable content area"""
@@ -94,19 +84,21 @@ class HomePage(BasePage):
             QScrollArea {
                 border: none;
                 background: transparent;
+                margin: 0;
+                padding: 0;
             }
         """)
 
         # Create content widget
         content_widget = QWidget()
         self.content_layout = QVBoxLayout(content_widget)
-        self.content_layout.setContentsMargins(30, 20, 30, 20)
-        self.content_layout.setSpacing(20)  # ИЗМЕНЯЕМ с 30 на 20 для меньшего расстояния между секциями
+        self.content_layout.setContentsMargins(30, 20, 30, 20)  # Восстанавливаем отступы только для контента
+        self.content_layout.setSpacing(20)
 
         # Add all sections
         self.setup_methods_section()
-        self.setup_recent_measurements()  # Этот метод нужно добавить
-        self.setup_recent_reports()  # Добавляем секцию с отчетами
+        self.setup_recent_measurements()
+        self.setup_recent_reports()
 
         # Add spacer at the end
         self.content_layout.addStretch()
@@ -116,9 +108,6 @@ class HomePage(BasePage):
 
     def setup_methods_section(self):
         """Setup method selection section - обновляем с упрощенными карточками"""
-        # Section title
-        section_title = self.create_section_title("Выберите метод исследования", 20)
-        self.content_layout.addWidget(section_title)
 
         # Method cards grid - теперь 3 карточки в ряд (упрощенные)
         grid_widget = QWidget()
@@ -127,47 +116,52 @@ class HomePage(BasePage):
         grid_layout.setSpacing(15)
         grid_layout.setContentsMargins(0, 0, 0, 20)
 
+        # Устанавливаем одинаковые пропорции колонок
+        grid_layout.setColumnStretch(0, 1)
+        grid_layout.setColumnStretch(1, 1)
+        grid_layout.setColumnStretch(2, 1)
+
         # 6 методов с категориями: 1,2,3,5 - Диэлектрики, 4,6 - Ферриты
         methods = [
             {
                 "id": 1,
-                "name": "Метод фиксированной частоты",
+                "name": "Метод измерения при фиксированной резонансной частоте",
                 "title": "Измерение диэлектрических параметров материалов методом объёмного резонатора при фиксированной резонансной частоте",
                 "category": "Диэлектрики",
                 "color": "#7879F1"
             },
             {
                 "id": 2,
-                "name": "Метод фиксированной длины",
+                "name": "Метод измерения при фиксированной резонансной длине",
                 "title": "Измерение диэлектрических параметров материалов методом объёмного резонатора при фиксированной резонансной длине",
                 "category": "Диэлектрики",
                 "color": "#9A9BFF"
             },
             {
                 "id": 3,
-                "name": "Метод для стержневых образцов",
+                "name": "Метод измерения для стержневых образцов",
                 "title": "Измерение диэлектрических параметров стержневых образцов методом объёмного резонатора",
                 "category": "Диэлектрики",
                 "color": "#f8c33c"
             },
             {
                 "id": 4,
-                "name": "Метод для СВЧ ферритов",
+                "name": "Метод первый для СВЧ ферритов",
                 "title": "Измерение диэлектрических параметров СВЧ ферритов методом объёмного резонатора",
                 "category": "Ферриты",
                 "color": "#FF6B6B"
             },
             {
                 "id": 5,
-                "name": "Метод измерения диэлектрических параметров",
-                "title": "Современный метод измерений диэлектрических параметров различных материалов",
+                "name": "Метод щелевого резонатора",
+                "title": "Описание ...",
                 "category": "Диэлектрики",
                 "color": "#9D7BF1"
             },
             {
                 "id": 6,
-                "name": "Расширенный метод анализа",
-                "title": "Расширенный метод анализа материалов с повышенной точностью измерений",
+                "name": "Метод второй для СВЧ ферритов",
+                "title": "Описание ...",
                 "category": "Ферриты",
                 "color": "#FF8E53"
             }
@@ -175,7 +169,7 @@ class HomePage(BasePage):
 
         self.method_cards.clear()
         for i, method_data in enumerate(methods):
-            row = i // 3  # Теперь 3 карточки в ряд
+            row = i // 3
             col = i % 3
 
             card = MethodCard(
@@ -292,10 +286,10 @@ class HomePage(BasePage):
 
         # Sample reports data - в реальном приложении здесь будут данные из бэкенда
         reports = [
-            ("Отчёт #СВЧФ_1_01122024", "20.11.2024", "СВЧФ", "#FF6B6B"),
-            ("Отчёт #СВЧФ_3_01122024", "20.11.2024", "СВЧФ", "#FF6B6B"),
-            ("Отчёт #СО_1_01122024", "19.11.2024", "СО", "#f8c33c"),
-            ("Отчёт #ФРЧ_2_01122024", "18.11.2024", "ФРЧ", "#7879F1")
+            ("Отчёт #СВЧФ_1_01122024", "20.11.2025", "СВЧФ", "Исследование СВЧ ферритов"),
+            ("Отчёт #СВЧФ_3_01122024", "20.11.2025", "СВЧФ", "Повторные замеры"),
+            ("Отчёт #СО_1_01122024", "19.11.2025", "СО", "Стержневые образцы"),
+            ("Отчёт #ФРЧ_2_01122024", "18.11.2025", "ФРЧ", "Фиксированная частота")
         ]
 
         for i, (title, date, method_type, color) in enumerate(reports):
@@ -306,10 +300,8 @@ class HomePage(BasePage):
 
         self.content_layout.addWidget(grid_widget)
 
-    # ОСТАЛЬНЫЕ МЕТОДЫ - КОПИРУЕМ ИЗ ПРЕДЫДУЩЕЙ ВЕРСИИ
     def open_measurement_page(self, method_id):
         """Open measurement page with selected method"""
-        print(f"Opening measurement page for method {method_id}")
 
         # Получаем главное окно
         main_window = self.parent()
@@ -317,16 +309,12 @@ class HomePage(BasePage):
             main_window = main_window.parent()
 
         if main_window and hasattr(main_window, 'open_new_measurement_page'):
-            print(f"Found main window, calling open_new_measurement_page({method_id})")
             main_window.open_new_measurement_page(method_id)
         else:
-            print("Main window not found or doesn't have required method")
-            # Альтернативный способ
             self.navigate_to_new_measurement(method_id)
 
     def navigate_to_new_measurement(self, method_id):
         """Alternative navigation to new measurement page"""
-        print(f"Alternative navigation for method {method_id}")
 
         # Получаем доступ к главному окну через цепочку родителей
         widget = self
@@ -523,6 +511,8 @@ class HomePage(BasePage):
         """Create a measurement card for the home page with graph preview on left"""
         from widgets import ModernCard
         from PyQt6.QtWidgets import QFrame
+        from PyQt6.QtGui import QPixmap
+        from PyQt6.QtCore import QSize
 
         card = ModernCard()
         card.setFixedHeight(140)  # Уменьшаем высоту для компактности
@@ -543,7 +533,7 @@ class HomePage(BasePage):
         card_layout.setContentsMargins(15, 15, 15, 15)
         card_layout.setSpacing(15)
 
-        # ЛЕВАЯ ЧАСТЬ: Мини-график (заглушка или реальный график)
+        # ЛЕВАЯ ЧАСТЬ: Мини-график с изображением
         graph_container = QFrame()
         graph_container.setFixedSize(160, 100)  # Фиксированный размер для графика
         graph_container.setStyleSheet(f"""
@@ -551,25 +541,67 @@ class HomePage(BasePage):
                 background: {Styles.BACKGROUND_DARK};
                 border-radius: 8px;
                 border: 1px solid rgba(255, 255, 255, 0.1);
+                padding: 5px;  # Добавляем отступ для изображения
             }}
         """)
 
-        # Заглушка для графика (можно заменить на реальный график)
-        graph_label = QLabel("📊")
-        graph_label.setStyleSheet("""
+        # Создаем QLabel для отображения изображения
+        graph_image = QLabel()
+        graph_image.setFixedSize(150, 90)  # Немного меньше контейнера
+        graph_image.setScaledContents(True)  # Масштабируем изображение под размер
+        graph_image.setStyleSheet("""
             QLabel {
-                font-size: 24px;
-                color: rgba(255, 255, 255, 0.5);
+                border-radius: 6px;
                 background: transparent;
             }
         """)
-        graph_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        # Загружаем изображение из файла
+        try:
+            # Убедитесь, что путь к файлу правильный
+            # Если папка img находится в корне проекта, то:
+            image_path = "img/graf.png"
+            # Или используйте абсолютный путь, если нужно:
+            # image_path = os.path.join(os.path.dirname(__file__), "..", "img", "graf.png")
+
+            pixmap = QPixmap(image_path)
+            if not pixmap.isNull():
+                # Масштабируем изображение под размер QLabel
+                pixmap = pixmap.scaled(graph_image.size(),
+                                       Qt.AspectRatioMode.KeepAspectRatio,
+                                       Qt.TransformationMode.SmoothTransformation)
+                graph_image.setPixmap(pixmap)
+            else:
+                # Если изображение не загрузилось, показываем текст
+                graph_image.setText("📊")
+                graph_image.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                graph_image.setStyleSheet("""
+                    QLabel {
+                        color: rgba(255, 255, 255, 0.5);
+                        font-size: 24px;
+                        border-radius: 6px;
+                    }
+                """)
+        except Exception as e:
+            # В случае ошибки показываем текст
+            print(f"Ошибка загрузки изображения: {e}")
+            graph_image.setText("📊")
+            graph_image.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            graph_image.setStyleSheet("""
+                QLabel {
+                    color: rgba(255, 255, 255, 0.5);
+                    font-size: 24px;
+                    border-radius: 6px;
+                }
+            """)
 
         graph_layout = QVBoxLayout(graph_container)
-        graph_layout.addWidget(graph_label)
+        graph_layout.addWidget(graph_image)
+        graph_layout.setContentsMargins(0, 0, 0, 0)
 
         card_layout.addWidget(graph_container)
 
+        # ОСТАЛЬНАЯ ЧАСТЬ КОДА (без изменений)
         # ПРАВАЯ ЧАСТЬ: Информация об измерении
         info_layout = QVBoxLayout()
         info_layout.setSpacing(6)
@@ -577,7 +609,7 @@ class HomePage(BasePage):
 
         # Заголовок измерения
         method_names = {
-            1: "ФРЧ", 2: "ФРД", 3: "СО", 4: "СВЧФ", 5: "Метод 5", 6: "Метод 6"
+            1: "ФРЧ", 2: "ФРД", 3: "СО", 4: "СВЧФ1", 5: "ЩР", 6: "СВЧФ2"
         }
 
         method_id = measure.get('method_id', 1)
@@ -638,22 +670,25 @@ class HomePage(BasePage):
             return
         self.open_measure_callback(measure_id)
 
-    def create_report_card(self, title, date, method_type, color):
+    def create_report_card(self, title, date, method_type, description):
         """Create a report card widget"""
         from widgets import ModernCard
 
         card = ModernCard()
-        card.setFixedHeight(100)
+        card.setFixedHeight(120)
         card.setCursor(Qt.CursorShape.PointingHandCursor)
+
+        # ОДИНАКОВЫЙ СТИЛЬ для всех карточек
         card.setStyleSheet(f"""
             ModernCard {{
-                background: rgba(255, 255, 255, 0.05);
-                border: 1px solid rgba(255, 255, 255, 0.1);
-                border-radius: 10px;
+                background: rgba(30, 31, 34, 0.9);
+                border: 1px solid rgba(120, 121, 241, 0.3);
+                border-radius: 12px;
             }}
             ModernCard:hover {{
-                background: rgba(255, 255, 255, 0.08);
-                border: 1px solid {color};
+                background: rgba(40, 41, 44, 0.95);
+                border: 1px solid #7879F1;
+                box-shadow: 0 4px 12px rgba(120, 121, 241, 0.2);
             }}
         """)
 
@@ -661,12 +696,13 @@ class HomePage(BasePage):
         card_layout.setContentsMargins(20, 15, 20, 15)
         card_layout.setSpacing(15)
 
-        # Report icon
+        # Report icon - ОДИНАКОВЫЙ для всех отчётов
         icon_widget = WidgetFactory.create_label("📄", font_size=24, align="center")
         icon_widget.setFixedSize(50, 50)
         icon_widget.setStyleSheet(f"""
-            background: {color}; 
-            color: white;
+            background: rgba(120, 121, 241, 0.2); 
+            color: #7879F1;
+            border: 1px solid rgba(120, 121, 241, 0.4);
             border-radius: 8px;
         """)
 
@@ -682,31 +718,52 @@ class HomePage(BasePage):
         )
         report_title.setStyleSheet("color: white;")
 
-        # Method and date
-        method_label = WidgetFactory.create_label(
-            f"{method_type} • {date}",
+        # Method type (цветной тег)
+        method_label = QLabel(f" {method_type} ")
+        method_label.setStyleSheet("""
+            QLabel {
+                color: #7879F1;
+                font-size: 10px;
+                font-weight: 600;
+                background: rgba(120, 121, 241, 0.1);
+                border: 1px solid rgba(120, 121, 241, 0.3);
+                border-radius: 4px;
+                padding: 2px 6px;
+                margin-right: 8px;
+            }
+        """)
+
+        # Description
+        desc_label = WidgetFactory.create_label(
+            description,
             color="rgba(255, 255, 255, 0.7)",
-            font_size=12
+            font_size=11
         )
 
-        # Status
-        status_label = WidgetFactory.create_label(
-            "✓ Готов",
-            color=color,
-            font_size=11,
-            bold=True
+        # Date
+        date_label = WidgetFactory.create_label(
+            f"📅 {date}",
+            color="rgba(255, 255, 255, 0.5)",
+            font_size=11
         )
-        status_label.setStyleSheet(f"background: {color}20; padding: 2px 8px; border-radius: 4px;")
 
-        info_layout.addWidget(report_title)
-        info_layout.addWidget(method_label)
-        info_layout.addWidget(status_label)
+        # Верхняя строка: заголовок и тег метода
+        top_row = QHBoxLayout()
+        top_row.setContentsMargins(0, 0, 0, 0)
+        top_row.setSpacing(8)
+        top_row.addWidget(report_title)
+        top_row.addWidget(method_label)
+        top_row.addStretch()
+
+        info_layout.addLayout(top_row)
+        info_layout.addWidget(desc_label)
+        info_layout.addWidget(date_label)
         info_layout.addStretch()
 
         card_layout.addWidget(icon_widget)
         card_layout.addLayout(info_layout, 1)
 
-        # Connect click (в реальном приложении здесь будет открытие отчета)
+        # Connect click
         card.mousePressEvent = lambda event, t=title: self.open_report(t, event)
 
         return card
