@@ -183,13 +183,14 @@ class FERROMainWindow(QMainWindow):
         if not self.measurement_process_widget:
             self.measurement_process_widget = MeasurementProcessWidget(
                 self.backend,
-                measurement_id,
+                measurement_data,
                 self
             )
             self.process_layout.addWidget(self.measurement_process_widget)
         else:
-            # Обновляем ID измерения
+            # Обновляем ID измерения и данные
             self.measurement_process_widget.measure_id = measurement_id
+            self.measurement_process_widget.measurement_data = measurement_data
 
         # Скрываем все обычные страницы
         self.page_stack.hide()
@@ -206,6 +207,16 @@ class FERROMainWindow(QMainWindow):
         )
 
         print(f"Measurement process started for ID: {measurement_id}")
+
+    def return_to_method_with_id(self, method_id):
+        """Вернуться к созданию измерения с выбранным методом"""
+        print(f"Returning to method {method_id}")
+
+        # Завершаем текущий процесс
+        self.finish_measurement_process()
+
+        # Открываем страницу создания с выбранным методом
+        self.open_new_measurement_page(method_id)
 
     def finish_measurement_process(self):
         """Finish measurement process and return to normal mode"""

@@ -402,20 +402,44 @@ class NewMeasurementPage(BasePage):
 
         # Collect data from form
         measurement_data = self.collect_measurement_data()
+        print(f"Collected data: {measurement_data}")
 
         # Call backend to create measurement
         response = self.backend.ferro_query("new_create", measurement_data)
+        print(f"Backend response: {response}")
 
         if response and 'id' in response:
             # Добавляем ID измерения в данные
             measurement_data['measurement_id'] = response['id']
             measurement_data['measurement_response'] = response
 
+            print(f"Emitting measurement_started with: {measurement_data}")
+
             # Эмитируем сигнал вместо открытия диалога
             self.measurement_started.emit(measurement_data)
         else:
             # Сбрасываем флаг если ошибка
             self._measurement_in_progress = False
+            print("Backend returned no ID or error")
+
+    def get_resonator_params(self):
+        """Получить все параметры резонатора"""
+        params = {}
+
+        # Собираем все поля в зависимости от метода
+        if self.selected_method in [1, 2, 3, 5]:
+            params['index'] = self.index_combo.currentText() if hasattr(self, 'index_combo') else "2"
+            params['d_res'] = self.d_res_input.text() if hasattr(self, 'd_res_input') else "50.0"
+            params['h_res'] = self.h_res_input.text() if hasattr(self, 'h_res_input') else "90.0"
+        elif self.selected_method in [4, 6]:
+            params['d_res'] = self.d_res_input.text() if hasattr(self, 'd_res_input') else "11.0"
+            params['d_sample'] = self.d_sample_input.text() if hasattr(self, 'd_sample_input') else "0.81"
+
+        # Общие параметры
+        params['temperature'] = self.temp_input.text() or "25.0"
+        params['humidity'] = self.humidity_input.text() or "50.0"
+
+        return params
 
     def collect_measurement_data(self):
         """Collect measurement data from form"""
