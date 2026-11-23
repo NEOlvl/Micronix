@@ -141,7 +141,7 @@ class MeasureDetailPage(BasePage):
     def load_measurement(self, measure_id):
         """Load measurement data"""
         self.current_measure_id = measure_id
-        data = self.backend.ferro_query("read_data", {"id_m": measure_id})
+        data = self.backend.query("read_data", {"id_m": measure_id})
 
         if not data:
             return

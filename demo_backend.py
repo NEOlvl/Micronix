@@ -1,5 +1,5 @@
 """
-Backend for FERRO application
+Demo backend for Micronix application (sample data, no hardware)
 """
 import json
 import os
@@ -8,8 +8,8 @@ import numpy as np
 from datetime import datetime
 
 
-class FERROBackend:
-    """Backend for FERRO application"""
+class DemoBackend:
+    """Demo backend for Micronix application"""
 
     def __init__(self):
         self.measures = {}
@@ -46,7 +46,7 @@ class FERROBackend:
         self.measures[sample_measure["id_m"]] = sample_measure
         self.next_id = 2
 
-    def ferro_query(self, method, params):
+    def query(self, method, params):
         """Main backend API method"""
         if method == "measure_data":
             return list(self.measures.values())
@@ -123,8 +123,8 @@ class FERROBackend:
             # Здесь должна быть логика получения JSON данных
             # Для демо вернем пример данных
 
-            # Ищем файл в data_ferro
-            data_dir = "data_ferro"
+            # Ищем файл в measurement_data
+            data_dir = "measurement_data"
             if os.path.exists(data_dir):
                 # Ищем файлы, содержащие ID измерения
                 json_files = [f for f in os.listdir(data_dir)
@@ -144,7 +144,7 @@ class FERROBackend:
 
     def list_json_files(self):
         """List all available JSON files"""
-        data_dir = "data_ferro"
+        data_dir = "measurement_data"
         if os.path.exists(data_dir):
             return [f for f in os.listdir(data_dir) if f.endswith('.json')]
         return []

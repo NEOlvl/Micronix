@@ -5,7 +5,7 @@ Main window
 from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                              QStackedWidget, QGraphicsDropShadowEffect, QPushButton)
-from backend import FERROBackend
+from demo_backend import DemoBackend
 from widgets import GradientBackground
 from pages import HomePage, MeasuresPage, MeasureDetailPage, ReportsPage, SettingsPage
 from pages.new_measurement_page import NewMeasurementPage
@@ -13,12 +13,12 @@ from widgets.sidebar import SidebarWidget
 from widgets.measurement_process_widget import MeasurementProcessWidget
 
 
-class FERROMainWindow(QMainWindow):
+class MicronixMainWindow(QMainWindow):
     """Main application window"""
 
     def __init__(self):
         super().__init__()
-        self.backend = FERROBackend()
+        self.backend = DemoBackend()
         self.setObjectName("main_window")
         self.showMaximized()
 
@@ -30,7 +30,7 @@ class FERROMainWindow(QMainWindow):
 
     def setup_ui(self):
         """Setup main window UI"""
-        self.setWindowTitle("FERRO — Измерительная система")
+        self.setWindowTitle("Микроникс — Измерительная система")
         self.setMinimumSize(1400, 900)
 
         # Create central widget with gradient background

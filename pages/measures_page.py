@@ -90,7 +90,7 @@ class MeasuresPage(BasePage):
                 item.widget().deleteLater()
 
         # Get measurements from backend
-        measures = self.backend.ferro_query("measure_data", 0)
+        measures = self.backend.query("measure_data", 0)
 
         if not measures:
             self.show_empty_state()

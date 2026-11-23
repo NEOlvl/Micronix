@@ -405,7 +405,7 @@ class NewMeasurementPage(BasePage):
         print(f"Collected data: {measurement_data}")
 
         # Call backend to create measurement
-        response = self.backend.ferro_query("new_create", measurement_data)
+        response = self.backend.query("new_create", measurement_data)
         print(f"Backend response: {response}")
 
         if response and 'id' in response:

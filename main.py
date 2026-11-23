@@ -1,11 +1,11 @@
 """
-FERRO — Complete PyQt6 port without simplifications
+Микроникс — PyQt6 application
 Main entry point
 """
 
 import sys
 from PyQt6.QtWidgets import QApplication
-from main_window import FERROMainWindow
+from main_window import MicronixMainWindow
 
 
 def main():
@@ -142,7 +142,7 @@ def main():
     app.setStyleSheet(dark_style)
 
     # Create and show main window
-    window = FERROMainWindow()
+    window = MicronixMainWindow()
     window.show()
 
     # Start application event loop

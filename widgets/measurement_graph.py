@@ -1,5 +1,5 @@
 """
-Measurement graph widget - optimized for FERRO JSON data format
+Measurement graph widget - optimized for Micronix JSON data format
 """
 
 import numpy as np
@@ -11,7 +11,7 @@ from PyQt6.QtCore import Qt, pyqtSignal
 
 
 class MeasurementGraphWidget(QWidget):
-    """Interactive measurement graph widget for FERRO data"""
+    """Interactive measurement graph widget for Micronix data"""
 
     # Сигнал при выборе образца
     sample_selected = pyqtSignal(str, dict)
@@ -150,7 +150,7 @@ class MeasurementGraphWidget(QWidget):
         parent_layout.addWidget(self.info_panel)
 
     def load_data_from_json(self, json_data):
-        """Load data from FERRO JSON format"""
+        """Load data from Micronix JSON format"""
         try:
             if isinstance(json_data, str):
                 self.data = json.loads(json_data)

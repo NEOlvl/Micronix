@@ -819,8 +819,8 @@ class MeasurementProcessWidget(QWidget):
 
     def select_data_file(self):
         """Выбор файла с данными измерений"""
-        # Ищем файлы в папке data_ferro
-        data_dir = "data_ferro"
+        # Ищем файлы в папке measurement_data
+        data_dir = "measurement_data"
         if not os.path.exists(data_dir):
             os.makedirs(data_dir, exist_ok=True)
 
@@ -969,7 +969,7 @@ class MeasurementProcessWidget(QWidget):
                 "status": "completed"
             }
 
-            response = self.backend.ferro_query("method_end", result_data)
+            response = self.backend.query("method_end", result_data)
 
             if response and response.get('success', False):
                 if hasattr(self, 'status_title'):

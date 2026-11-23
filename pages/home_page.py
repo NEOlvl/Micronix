@@ -406,7 +406,7 @@ class HomePage(BasePage):
                 item.widget().deleteLater()
 
         # Get real measurements from backend
-        real_measures = self.backend.ferro_query("measure_data", 0)
+        real_measures = self.backend.query("measure_data", 0)
 
         # Статические данные для 4х карточек
         static_measurements = [
