@@ -39,7 +39,9 @@ class FerriteMethod(Method):
     description = (
         'Диэлектрические свойства ферритов по сдвигу и уширению '
         'резонансной кривой: стандартный, полный расчёт и метод '
-        'сдвига частоты (круглый/квадратный образец).')
+        'сдвига частоты (круглый/квадратный образец). '
+        'ВНИМАНИЕ: методика не соответствует ГОСТ Р 71432-2024 '
+        '(унаследованная модель).')
     variants = {
         'st': 'Стандартный расчёт',
         'real': 'Полный расчёт',
@@ -65,6 +67,11 @@ class FerriteMethod(Method):
     def calculate(self, params: Dict,
                   resonance: ResonanceChannels) -> MethodResult:
         res = MethodResult()
+        # ТЗ2-7: методика не соответствует ГОСТ Р 71432-2024 —
+        # предупреждение выводится в GUI и PDF-протоколе
+        res.warnings.append(
+            'Методика СВЧФ не соответствует ГОСТ Р 71432-2024 '
+            '(унаследованная модель)')
         variant = self._variant(params)
         if variant not in self.variants:
             res.errors.append(

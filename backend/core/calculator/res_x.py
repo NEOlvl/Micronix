@@ -6,11 +6,120 @@ SolverError — никаких «значений по умолчанию» (у�
 """
 
 import math
+from typing import Optional
 
 import scipy.optimize
 from scipy.special import jv, jn_zeros
 
-from .base import SolverError
+from .base import CalculationError, SolverError
+from .const import C, EB, V11
+
+
+# Схемы включения резонатора в измерительной схеме (ТЗ2-4):
+# 'through' — проходной резонатор, резонанс — пик |S21|;
+# 'notch'   — резонатор-режектор, резонанс — провал.
+# Фактическая схема установки не подтверждена заказчиком (вопрос 4.1
+# ТЗ-2). ТЗ3-2: значения по умолчанию нет — неподтверждённый дефолт
+# 'notch' менял tgδ измерений в десятки раз; схема обязана быть
+# выбрана оператором явно (MicronixAPI.start_measurement).
+SCHEMES = ('notch', 'through')
+
+SCHEME_UNCONFIRMED = (
+    'фактическая схема включения резонатора установки не '
+    'подтверждена заказчиком (вопрос 4.1 ТЗ-2)')
+
+
+def scheme_error(scheme) -> Optional[str]:
+    """ТЗ3-2/ТЗ3-4: текст ошибки по scheme, либо None если допустимо.
+
+    Неизвестное значение — контролируемая ошибка (устаревший код
+    молча трактовал любое значение кроме 'through' как режектор).
+    """
+    s = str(scheme or '')
+    if s in SCHEMES:
+        return None
+    return (
+        'Схема включения резонатора не выбрана или неизвестна: '
+        f'{scheme!r} — требуется явный выбор одной из {SCHEMES} '
+        f'({SCHEME_UNCONFIRMED})')
+
+
+def extraction_options(scheme: str) -> dict:
+    """Параметры extract_resonance под схему включения резонатора.
+
+    'through' — пик, полоса по ГОСТ прил. Г.3.1 ('gost');
+    'notch' — провал, полоса половинной мощности от базовой линии
+    ('half_power' — для глубокого провала уровень «min + 3.01 дБ»
+    занижает полосу и завышает Q).
+    """
+    if scheme == 'through':
+        return {'peak': 'peak', 'bandwidth': 'gost'}
+    if scheme == 'notch':
+        return {'peak': 'dip', 'bandwidth': 'half_power'}
+    raise CalculationError(
+        f'Неизвестная схема включения резонатора: {scheme!r} '
+        f'(допустимы: {", ".join(SCHEMES)})')
+
+
+def unloaded_q(q_loaded: float, a0_db: float, scheme: str,
+               depth_db: Optional[float] = None) -> float:
+    """Собственная добротность с поправкой на связь (ТЗ2-4, ТЗ3-1).
+
+    'through' — Q0 = QL / (1 - |S21(f0)|), прил. Г.2 ГОСТ Р 8.623-2015
+        (для пика передачи |S21(f0)| = 10^(A0/20), A0 < 0 — уровень
+        относительно 0 дБ).
+    'notch' — Q0 = QL / |S21min|; для режектора |S21min| = 1/(1+β)
+        отсчитывается от базовой линии вне резонанса, поэтому
+        поправка — по глубине провала: |S21min| = 10^(-depth_db/20)
+        -> Q0 = QL * 10^(0.05*depth_db). ТЗ3-1: раньше использовался
+        абсолютный уровень A0 — при базовой линии, отличной от 0 дБ,
+        поправка (а значит Q00 и tgδ) завышалась.
+
+    ТЗ3-4: неизвестное значение scheme — CalculationError.
+    """
+    if scheme == 'through':
+        return q_loaded / (1.0 - 10.0 ** (0.05 * a0_db))
+    if scheme == 'notch':
+        if depth_db is None:
+            raise CalculationError(
+                'Поправка на связь режектора требует глубину провала '
+                'относительно базовой линии (depth_db)')
+        return q_loaded * 10.0 ** (0.05 * depth_db)
+    raise CalculationError(
+        f'Неизвестная схема включения резонатора: {scheme!r} '
+        f'(допустимы: {", ".join(SCHEMES)})')
+
+
+def resonator_f0_h01p(radius_mm: float, length_mm: float,
+                      p: float) -> float:
+    """Резонансная частота пустого цилиндрического резонатора H01p, Гц.
+
+    k0^2 = (v11/R)^2 + (p*pi/L)^2,  f0 = k0*c / (2*pi*sqrt(EB)).
+    Проверка геометрической согласованности (ТЗ2-1): метод корректен,
+    только если пустой резонатор действительно резонирует на f0.
+    """
+    k0 = math.sqrt((V11 / radius_mm) ** 2
+                   + (p * math.pi / length_mm) ** 2)
+    return C * k0 / (2.0 * math.pi * math.sqrt(EB))
+
+
+def geometry_consistency_warning(f0: float, radius_mm: float,
+                                 length_mm: float, p: float,
+                                 tolerance: float = 0.01) -> str:
+    """Текст предупреждения о несогласованности геометрии (ТЗ2-1).
+
+    Возвращает '', если расчётная f0 пустого резонатора H01p отличается
+    от измеренной не более чем на tolerance.
+    """
+    f0_exp = resonator_f0_h01p(radius_mm, length_mm, p)
+    dev = abs(f0_exp - f0) / f0
+    if dev <= tolerance:
+        return ''
+    return (
+        "Геометрия резонатора не согласована с измеренной частотой: "
+        f"для моды H01{p:g} при R = {radius_mm:g} мм, "
+        f"L = {length_mm:g} мм расчётная f0 = {f0_exp / 1e9:.4f} ГГц, "
+        f"измеренная {f0 / 1e9:.4f} ГГц (расхождение {dev * 100:.1f} %)")
 
 
 def _solve_cot_over(a_const: float) -> float:
@@ -36,7 +145,7 @@ def _solve_cot_over(a_const: float) -> float:
             "не найдено") from exc
 
 
-def solve_for_x_1(h2: float, t: float, L: float = 40.0) -> float:
+def solve_for_x_1(h2: float, t: float, L: float) -> float:
     """Решение уравнения cot(x/2)/(x/2) - 2*tan(h2*L)/(h2*t) = 0.
 
     Args:
@@ -50,7 +159,7 @@ def solve_for_x_1(h2: float, t: float, L: float = 40.0) -> float:
     return _solve_cot_over(2.0 * math.tan(h2 * L) / (h2 * t))
 
 
-def solve_for_x_2(beta2: float, t: float, L: float = 40.0) -> float:
+def solve_for_x_2(beta2: float, t: float, L: float) -> float:
     """Решение уравнения cot(x/2)/(x/2) - 2*tanh(beta2*L)/(beta2*t) = 0.
 
     Ветвь для случая fE ниже частоты отсечки (затухающая волна).

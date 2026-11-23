@@ -46,10 +46,7 @@ class BasePage(QWidget):
         # Add subtitle if exists
         if subtitle:
             subtitle_label = WidgetFactory.create_label(
-                subtitle,
-                color="rgba(255, 255, 255, 0.6)",
-                font_size=14
-            )
+                subtitle, role="subtitle")
             self.layout.addWidget(subtitle_label)
 
         # Add some spacing

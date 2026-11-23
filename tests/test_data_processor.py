@@ -134,6 +134,88 @@ def test_peak_mode():
     assert r.q == pytest.approx(q_true, rel=0.15)
 
 
+# --- ТЗ2-4/ТЗ3-1: схема включения резонатора ---
+
+import math
+
+from backend.core.calculator.res_x import (extraction_options,
+                                           unloaded_q)
+
+
+def synth_notch_s21(f0_hz, q_unloaded, beta, n=1601,
+                    fstart=8e9, fstop=12e9):
+    """АЧХ режектора |S21|, дБ, с известными Q0 и коэффициентом связи β.
+
+    S21(f) = 1 - (β/(1+β)) / (1 + j·2QL·Δf/f0),  QL = Q0/(1+β);
+    на резонансе |S21min| = 1/(1+β) — отсчитывается от базовой
+    линии (0 дБ), т.е. depth_db = 20·lg(1+β).
+    """
+    f = np.linspace(fstart, fstop, n)
+    ql = q_unloaded / (1.0 + beta)
+    s21 = 1.0 - (beta / (1.0 + beta)) \
+        / (1.0 + 2j * ql * (f - f0_hz) / f0_hz)
+    return f, 20.0 * np.log10(np.abs(s21))
+
+
+def synth_through_s21(f0_hz, q_unloaded, s21_max, n=1601,
+                      fstart=8e9, fstop=12e9):
+    """Пик |S21| проходного резонатора, дБ, с известными Q0 и |S21max|.
+
+    S21(f) = S21max / (1 + j·2QL·Δf/f0),  QL = Q0·(1-|S21max|);
+    + подложка -60 дБ для оценки базовой линии экстрактором.
+    """
+    f = np.linspace(fstart, fstop, n)
+    ql = q_unloaded * (1.0 - s21_max)
+    s21 = s21_max / (1.0 + 2j * ql * (f - f0_hz) / f0_hz)
+    return f, 10.0 * np.log10(np.abs(s21) ** 2 + 1e-6)
+
+
+def test_scheme_notch_recovers_unloaded_q():
+    """ТЗ3-1/п.3.1: независимый тест поправки режектора — кривая
+    с известными Q0 и β, поправка считается от глубины провала."""
+    f0_hz, q0_true, beta = 10e9, 900.0, 9.0
+    f, a = synth_notch_s21(f0_hz, q0_true, beta)
+    opts = extraction_options('notch')
+    assert opts == {'peak': 'dip', 'bandwidth': 'half_power'}
+    r = extract_resonance(f, a, **opts)
+    # нагруженная добротность и глубина — из физики синтеза,
+    # не из тестируемого кода
+    assert r.q == pytest.approx(q0_true / (1.0 + beta), rel=0.05)
+    assert r.depth_db == pytest.approx(
+        20.0 * math.log10(1.0 + beta), rel=0.05)
+    q0 = unloaded_q(r.q, r.a0, 'notch', depth_db=r.depth_db)
+    assert q0 == pytest.approx(q0_true, rel=0.08)
+
+
+def test_scheme_notch_correction_uses_depth_not_absolute_a0():
+    """ТЗ3-1: поправка считается от depth_db, а не абсолютного A0 —
+    при базовой линии != 0 дБ старый вариант завышал Q0."""
+    q0_true, beta = 800.0, 19.0            # глубина ~26 дБ
+    f, a = synth_notch_s21(10e9, q0_true, beta)
+    # смещаем кривую вниз на 5 дБ — базовая линия -5 дБ, A0 ~ -31 дБ
+    a = a - 5.0
+    r = extract_resonance(f, a, **extraction_options('notch'))
+    q0 = unloaded_q(r.q, r.a0, 'notch', depth_db=r.depth_db)
+    assert q0 == pytest.approx(q0_true, rel=0.08)
+    # старый вариант (по абсолютному A0) завышал бы поправку ~1.8 раза
+    q0_wrong = r.q * 10.0 ** (-0.05 * r.a0)
+    assert q0_wrong > 1.5 * q0
+
+
+def test_scheme_through_recovers_unloaded_q():
+    """П.3.1: независимый тест поправки проходного резонатора —
+    кривая с известными Q0 и |S21max|, поправка по уровню пика."""
+    f0_hz, q0_true, s21_max = 10e9, 720.0, 0.1
+    f, a = synth_through_s21(f0_hz, q0_true, s21_max)
+    opts = extraction_options('through')
+    assert opts == {'peak': 'peak', 'bandwidth': 'gost'}
+    r = extract_resonance(f, a, **opts)
+    assert r.q == pytest.approx(q0_true * (1.0 - s21_max), rel=0.08)
+    assert r.a0 == pytest.approx(20.0 * math.log10(s21_max), abs=1.0)
+    q0 = unloaded_q(r.q, r.a0, 'through')
+    assert q0 == pytest.approx(q0_true, rel=0.10)
+
+
 def test_unsorted_input_is_sorted():
     f, a = make_dip(noise_db=0.0)
     idx = np.random.default_rng(5).permutation(len(f))

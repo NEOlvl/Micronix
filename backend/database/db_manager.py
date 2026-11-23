@@ -228,14 +228,20 @@ class DatabaseManager:
 
 
 def resonance_from_record(record: Dict) -> ResonanceChannels:
-    """ResonanceChannels из записи (для повторной обработки, ТЗ-8)."""
+    """ResonanceChannels из записи (для повторной обработки, ТЗ-8).
+
+    ТЗ3-1: глубина провала базовой кривой хранится в params под
+    служебным ключом '_depth0', образца — в extra_json образца.
+    """
     samples = record.get('samples') or []
     first = samples[0] if samples else {}
     return ResonanceChannels(
         f0=record.get('f0'), f1=record.get('f1'), f2=record.get('f2'),
         a0=record.get('a0'),
         fe=first.get('fe'), f1e=first.get('f1e'), f2e=first.get('f2e'),
-        ae=first.get('ae'))
+        ae=first.get('ae'),
+        depth0=(record.get('params') or {}).get('_depth0'),
+        depthe=first.get('depthe'))
 
 
 _PARAM_KEY = re.compile(r'data\[\d+\]\[([a-zA-Z_]+)\]')
@@ -246,8 +252,10 @@ _PARAM_ALIASES: Dict[str, Dict[str, Any]] = {
     'mfch': {'t': 't', 'd_res': 'D', 'h_res': 'L0', 'del_L': 'delL',
              'index': 'p'},
     'mfd': {'t': 't', 'd_res': 'D', 'h_res': 'L0', 'index': 'p'},
-    'so': {'d': 'a', 'h_res': 'L', 'index': 'p',
-           'd_res': ('R0', lambda v: v / 2)},  # в архиве диаметр, метод ждёт радиус
+    # СО: в архиве d — диаметр образца, d_res — диаметр резонатора
+    # (подтверждено заказчиком, ТЗ-2 п.4.2-4.3) -> радиусы a, R0
+    'so': {'d': ('a', lambda v: v / 2), 'h_res': 'L', 'index': 'p',
+           'd_res': ('R0', lambda v: v / 2)},
     'svchf': {'d_res': 'R', 'd_sample': 'r'},
 }
 

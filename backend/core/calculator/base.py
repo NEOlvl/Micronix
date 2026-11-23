@@ -68,6 +68,11 @@ class ResonanceChannels:
     f1e: Optional[float] = None
     f2e: Optional[float] = None
     ae: Optional[float] = None
+    # ТЗ3-1: глубина провала относительно локальной базовой линии, дБ
+    # (поле depth_db результата data_processor). Нужна для поправки
+    # на связь режектора: |S21min| отсчитывается от базы, а не от 0 дБ.
+    depth0: Optional[float] = None
+    depthe: Optional[float] = None
 
     @staticmethod
     def _q(f0, f1, f2):
@@ -104,7 +109,9 @@ class ResonanceChannels:
             f0=cls._get(empty, 'f0'), f1=cls._get(empty, 'f1'),
             f2=cls._get(empty, 'f2'), a0=cls._get(empty, 'a0', 'A0'),
             fe=cls._get(loaded, 'fe', 'f0'), f1e=cls._get(loaded, 'f1e', 'f1'),
-            f2e=cls._get(loaded, 'f2e', 'f2'), ae=cls._get(loaded, 'ae', 'a0', 'A0'))
+            f2e=cls._get(loaded, 'f2e', 'f2'), ae=cls._get(loaded, 'ae', 'a0', 'A0'),
+            depth0=cls._get(empty, 'depth0', 'depth_db'),
+            depthe=cls._get(loaded, 'depthe', 'depth_db'))
 
     @classmethod
     def from_dict(cls, d: Dict):

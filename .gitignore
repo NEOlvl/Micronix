@@ -27,3 +27,6 @@ nuitka-crash-report.xml
 report/
 reports/
 data_base/
+
+# UI screenshots (dev)
+_ui_shots/

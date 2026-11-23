@@ -23,7 +23,8 @@ from scipy.special import jv, yn
 from .base import (CalculationError, Method, MethodInput, MethodResult,
                    ResonanceChannels)
 from .const import (C, EB, F_RANGE, SO_E_RANGE, SO_TGO_RANGE)
-from .res_x import solve_bessel_ratio
+from .res_x import (geometry_consistency_warning,
+                    solve_bessel_ratio, unloaded_q)
 
 
 class RodSampleMethod(Method):
@@ -62,6 +63,13 @@ class RodSampleMethod(Method):
                 f"Неподходящая частота без образца f0 = {f0:.6g} Гц")
             return res
 
+        # ТЗ2-1: геометрическая согласованность — пустой резонатор H01p
+        # должен резонировать на измеренной f0 (не ошибка, а warning)
+        warn = geometry_consistency_warning(f0, R0, L, p)
+        if warn:
+            res.warnings.append(warn)
+
+        tgo = None
         try:
             D = 2.0 * R0
             d = 2.0 * a
@@ -77,14 +85,16 @@ class RodSampleMethod(Method):
             drobZ = Z1_y / (y * Z0_y)
             x = solve_bessel_ratio(drobZ)
 
-            E_raw = (x ** 2 + (h * a) ** 2) / (k2 * a) ** 2
+            # ТЗ3-5: ε относительно вакуума, как в МФД/МФЧ/MSR9 —
+            # делим на (k0*a)^2, а не (k2*a)^2 = eps_в*(k0*a)^2
+            # (для воздуха метод даёт eps_в = 1.0006, а не 1.0000)
+            k0 = k2 / math.sqrt(EB)
+            E_raw = (x ** 2 + (h * a) ** 2) / (k0 * a) ** 2
             E = E_raw / e_cal  # Д-4: калибровочный параметр вместо const 3.2
 
             k1 = 2.0 * math.pi * fE * math.sqrt(E_raw) / C
             Q0 = f0 / (f2 - f1)
             QE = fE / (f2E - f1E)
-            Q00 = Q0 / (1.0 - 10.0 ** (0.05 * A0))
-            Q0E = QE / (1.0 - 10.0 ** (0.05 * AE))
 
             J0_x, J1_x, J2_x = jv(0, x), jv(1, x), jv(2, x)
             J0_yb = jv(0, y * b)
@@ -112,7 +122,16 @@ class RodSampleMethod(Method):
                 + ((k2 * a) / y) ** 2 * (J0_x / Z0_y) ** 2 *
                 (b ** 2 * Z0_yb ** 2 - Zy))
             n = chisl_n / znam_n
-            tgo = (1.0 / K1E) * (1.0 / Q0E - n / Q00)
+            # ТЗ2-4/ТЗ3-1: поправка на связь по схеме включения
+            # (для режектора — по глубине провала); ТЗ3-2: дефолта
+            # нет — невыбранная/неизвестная схема не роняет расчёт E
+            scheme = str(params.get('scheme') or '')
+            try:
+                Q00 = unloaded_q(Q0, A0, scheme, resonance.depth0)
+                Q0E = unloaded_q(QE, AE, scheme, resonance.depthe)
+                tgo = (1.0 / K1E) * (1.0 / Q0E - n / Q00)
+            except CalculationError as exc:
+                res.errors.append(str(exc))
         except (CalculationError, ValueError, ZeroDivisionError,
                 OverflowError) as exc:
             res.errors.append(f"Ошибка расчёта: {exc}")
@@ -120,7 +139,8 @@ class RodSampleMethod(Method):
 
         if not (SO_E_RANGE[0] <= E <= SO_E_RANGE[1]):
             res.errors.append(f"Неподходящее значение E = {E:.6g}")
-        if not (SO_TGO_RANGE[0] <= tgo <= SO_TGO_RANGE[1]):
+        if tgo is not None and not (
+                SO_TGO_RANGE[0] <= tgo <= SO_TGO_RANGE[1]):
             res.errors.append(
                 f"Неподходящее значение tgo = {tgo:.6g}")
 

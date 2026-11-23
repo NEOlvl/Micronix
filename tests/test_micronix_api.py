@@ -6,7 +6,7 @@ import pytest
 from backend.api.micronix_api import (
     APIError, MicronixAPI, ParamsError, SessionStateError)
 
-MFD_PARAMS = {'t': 1.0, 'D': 45.0, 'L0': 80.0}
+MFD_PARAMS = {'t': 1.0, 'D': 45.0, 'L0': 80.0, 'scheme': 'notch'}
 
 
 @pytest.fixture
@@ -62,12 +62,26 @@ class TestValidation:
 
     def test_start_invalid_raises(self, api):
         with pytest.raises(ParamsError) as exc:
-            api.start_measurement('mfd', {'t': 99})
+            api.start_measurement('mfd', {'t': 99, 'scheme': 'notch'})
         assert exc.value.errors
 
     def test_start_unknown_method(self, api):
         with pytest.raises(APIError):
             api.start_measurement('nope', {})
+
+    def test_start_without_scheme_raises(self, api):
+        """ТЗ3-2: без явной схемы включения измерение не стартует —
+        молчаливого дефолта 'notch' больше нет."""
+        with pytest.raises(ParamsError) as exc:
+            api.start_measurement(
+                'mfd', {'t': 1.0, 'D': 45.0, 'L0': 80.0})
+        assert any('хем' in e for e in exc.value.errors)
+
+    def test_start_bad_scheme_raises(self, api):
+        """ТЗ3-4: неизвестная схема — контролируемая ошибка."""
+        with pytest.raises(ParamsError):
+            api.start_measurement(
+                'mfd', {**MFD_PARAMS, 'scheme': 'weird'})
 
 
 class TestSession:

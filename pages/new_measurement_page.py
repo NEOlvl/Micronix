@@ -9,7 +9,7 @@ from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
 from pages.base_page import BasePage
 from widget_factory import WidgetFactory
 from widgets import ModernCard, HeaderWidget
-from styles import Styles
+from styles import repolish
 
 
 class NewMeasurementPage(BasePage):
@@ -58,18 +58,18 @@ class NewMeasurementPage(BasePage):
         self.setup_content(main_layout)
 
     def setup_custom_header(self, parent_layout):
-        """Setup custom header - ПРАВИЛЬНОЕ ПРОДОЛЖЕНИЕ САЙДБАРА"""
+        """Setup custom header - фиолетовая шапка как продолжение сайдбара"""
         self.header = QWidget()
+        self.header.setObjectName("accentHeader")
+        self.header.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.header.setFixedHeight(100)
-        self.header.setContentsMargins(0, 0, 0, 0)
-        self.header.setStyleSheet(f"""
-            QWidget {{
-                background: #7879F1;
-                border: none;
-                margin: 0;
-                padding: 0;
-            }}
-        """)
+
+        header_layout = QHBoxLayout(self.header)
+        header_layout.setContentsMargins(30, 0, 30, 0)
+        page_title = QLabel("Новое исследование")
+        page_title.setProperty("role", "accentTitle")
+        header_layout.addWidget(page_title)
+        header_layout.addStretch()
 
         parent_layout.addWidget(self.header)
         parent_layout.setContentsMargins(0, 0, 0, 0)
@@ -79,14 +79,6 @@ class NewMeasurementPage(BasePage):
         # Create main content widget with scroll
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
-        scroll_area.setStyleSheet("""
-            QScrollArea {
-                border: none;
-                background: transparent;
-                margin: 0;
-                padding: 0;
-            }
-        """)
 
         content_widget = QWidget()
         self.content_layout = QVBoxLayout(content_widget)
@@ -133,30 +125,11 @@ class NewMeasurementPage(BasePage):
         card = ModernCard()
         card.setMinimumHeight(140)
         card.setCursor(Qt.CursorShape.PointingHandCursor)
+        card.setProperty("clickable", True)
+        card.setProperty("selected", method_id == self.selected_method)
 
         # Сохраняем ID метода в объекте карточки
         card.method_id = method_id
-
-        # ВСЕГДА используем один цвет для обводки и текста - фиолетовый как у первого метода
-        primary_color = "#7879F1"  # Фиксированный цвет для всего
-
-        # Highlight if selected
-        if method_id == self.selected_method:
-            card.setStyleSheet(f"""
-                ModernCard {{
-                    background: rgba(40, 41, 44, 0.9);
-                    border: 2px solid {primary_color};
-                    border-radius: 12px;
-                }}
-            """)
-        else:
-            card.setStyleSheet(f"""
-                ModernCard {{
-                    background: rgba(30, 31, 34, 0.8);
-                    border: 1px solid rgba(255, 255, 255, 0.1);
-                    border-radius: 12px;
-                }}
-            """)
 
         card_layout = QVBoxLayout(card)
         card_layout.setContentsMargins(20, 20, 20, 20)
@@ -165,28 +138,16 @@ class NewMeasurementPage(BasePage):
         # Method header - БЕЗ бейджа в правом углу
         header_layout = QHBoxLayout()
 
-        # Все названия методов одним цветом - фиолетовым
+        # Название метода — акцентом
         method_name = QLabel(name)
-        method_name.setStyleSheet(f"""
-            QLabel {{
-                color: {primary_color};
-                font-size: 18px;
-                font-weight: 600;
-            }}
-        """)
+        method_name.setProperty("role", "cardTitle")
 
         header_layout.addWidget(method_name)
         header_layout.addStretch()  # Добавляем растяжку чтобы название было слева
 
         # Description
         method_desc = QLabel(description)
-        method_desc.setStyleSheet(f"""
-            QLabel {{
-                color: rgba(255, 255, 255, 0.7);
-                font-size: 14px;
-                line-height: 1.4;
-            }}
-        """)
+        method_desc.setProperty("role", "cardText")
         method_desc.setWordWrap(True)
 
         card_layout.addLayout(header_layout)
@@ -224,38 +185,12 @@ class NewMeasurementPage(BasePage):
         self.error_label = QLabel("")
         self.error_label.setWordWrap(True)
         self.error_label.setVisible(False)
-        self.error_label.setStyleSheet("""
-            QLabel {
-                color: #FF6B6B;
-                font-size: 13px;
-                background: rgba(239, 68, 68, 0.1);
-                border: 1px solid rgba(239, 68, 68, 0.4);
-                border-radius: 6px;
-                padding: 10px;
-            }
-        """)
+        self.error_label.setProperty("role", "errorBox")
         return self.error_label
 
     def create_resonator_settings_group(self):
         """Группа параметров: inputs[] метода + общие поля среды."""
         group = QGroupBox("Предварительная настройка перед началом измерения")
-        group.setStyleSheet(f"""
-            QGroupBox {{
-                color: {Styles.TEXT_PRIMARY};
-                font-size: 16px;
-                font-weight: 600;
-                border: 1px solid {Styles.BORDER_MEDIUM};
-                border-radius: 8px;
-                margin-top: 20px;
-                padding-top: 12px;
-                background: rgba(40, 41, 44, 0.6);
-            }}
-            QGroupBox::title {{
-                subcontrol-origin: margin;
-                left: 10px;
-                padding: 0 8px;
-            }}
-        """)
 
         layout = QFormLayout(group)
         layout.setVerticalSpacing(12)
@@ -274,13 +209,30 @@ class NewMeasurementPage(BasePage):
                 self.variant_combo.addItem(vname, vid)
             self.variant_combo.setCurrentIndex(
                 list(variants).index(self.selected_variant))
-            self.variant_combo.setStyleSheet(Styles.INPUT_FIELD)
             self.variant_combo.currentIndexChanged.connect(
                 lambda _: self.select_variant(
                     self.variant_combo.currentData()))
             layout.addRow("Вариант расчёта:", self.variant_combo)
         else:
             self.selected_variant = None
+
+        # Схема включения резонатора (ТЗ2-4; по вопросу 4.1 ТЗ-2
+        # подтверждения от заказчика нет). ТЗ3-2: значения по
+        # умолчанию нет — оператор обязан выбрать схему явно,
+        # иначе измерение не стартует.
+        self.scheme_combo = QComboBox()
+        self.scheme_combo.addItem(
+            '— выберите схему (не подтверждена заказчиком) —', None)
+        self.scheme_combo.addItem(
+            'Режектор (провал |S21|)', 'notch')
+        self.scheme_combo.addItem(
+            'Проходной (пик |S21|)', 'through')
+        self.scheme_combo.setToolTip(
+            'Схема включения резонатора в тракт ВАЦ. От неё зависят '
+            'способ выделения полосы и поправка на связь. Фактическая '
+            'схема установки не подтверждена заказчиком — требуется '
+            'явный выбор, измерение без него не стартует.')
+        layout.addRow("Схема включения резонатора:", self.scheme_combo)
 
         # Поля по описанию inputs[] метода (ТЗ-9)
         if meta:
@@ -290,6 +242,14 @@ class NewMeasurementPage(BasePage):
                 default = spec.get('default')
                 edit = WidgetFactory.create_input(
                     '' if default is None else str(default))
+                # ТЗ2-9: дефолт — реальное значение поля (setText),
+                # placeholder остаётся только подсказкой.
+                # ТЗ-3 п.4.2: дефолты только там, где они физически
+                # осмысленны (температура, влажность, индекс p,
+                # калибровка) — у геометрии резонатора (D, L0, R0, t)
+                # дефолта нет: вымышленная геометрия портит запись.
+                if default is not None:
+                    edit.setText(str(default))
                 label = spec['label']
                 if spec.get('unit'):
                     label += f", {spec['unit']}"
@@ -304,7 +264,9 @@ class NewMeasurementPage(BasePage):
 
         # Параметры окружающей среды (общие, ТЗ-7 — данные датчиков)
         self.temp_input = WidgetFactory.create_input("25.0")
+        self.temp_input.setText("25.0")
         self.humidity_input = WidgetFactory.create_input("50.0")
+        self.humidity_input.setText("50.0")
 
         layout.addRow("Температура (°C):", self.temp_input)
         layout.addRow("Влажность (%):", self.humidity_input)
@@ -358,28 +320,10 @@ class NewMeasurementPage(BasePage):
         if grid_widget:
             for child in grid_widget.findChildren(QWidget):
                 if child.__class__.__name__ == "ModernCard" and hasattr(child, 'method_id'):
-                    # Всегда используем один цвет для выделения
-                    border_color = "#7879F1"
-
-                    # Проверяем, это ли метод выбран
-                    if child.method_id == self.selected_method:
-                        # Выделяем выбранную карточку фиолетовым
-                        child.setStyleSheet(f"""
-                            ModernCard {{
-                                background: rgba(40, 41, 44, 0.9);
-                                border: 2px solid {border_color};
-                                border-radius: 12px;
-                            }}
-                        """)
-                    else:
-                        # Сбрасываем стиль для остальных
-                        child.setStyleSheet(f"""
-                            ModernCard {{
-                                background: rgba(30, 31, 34, 0.8);
-                                border: 1px solid rgba(255, 255, 255, 0.1);
-                                border-radius: 12px;
-                            }}
-                        """)
+                    # Выделение — через свойство, стиль из APP_QSS
+                    child.setProperty(
+                        "selected", child.method_id == self.selected_method)
+                    repolish(child)
 
     def refresh_parameters(self):
         """Refresh parameters section when method changes"""
@@ -425,6 +369,15 @@ class NewMeasurementPage(BasePage):
                   in self._param_fields.items()}
         params['temperature'] = self.temp_input.text() or '25.0'
         params['humidity'] = self.humidity_input.text() or '50.0'
+        # ТЗ3-2: схема не выбрана -> измерение не стартует
+        scheme = self.scheme_combo.currentData()
+        if not scheme:
+            self._show_param_errors([
+                'Не выбрана схема включения резонатора — укажите '
+                'схему явно (фактическая схема установки не '
+                'подтверждена заказчиком)'])
+            return
+        params['scheme'] = scheme
 
         errors = self.backend.validate_params(
             self.selected_method, params, self.selected_variant)
@@ -464,18 +417,7 @@ class NewMeasurementPage(BasePage):
 
         # Можно добавить временное уведомление в интерфейсе
         notification = QLabel(f"Выбран метод: {method_name}")
-        notification.setStyleSheet(f"""
-            QLabel {{
-                color: #7879F1;
-                font-size: 14px;
-                font-weight: 600;
-                background: rgba(120, 121, 241, 0.1);
-                border: 1px solid #7879F1;
-                border-radius: 6px;
-                padding: 8px 16px;
-                margin: 10px 0;
-            }}
-        """)
+        notification.setProperty("role", "noticeBox")
         notification.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         # Добавляем уведомление в начало контента

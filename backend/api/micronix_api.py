@@ -21,6 +21,9 @@ from typing import Dict, List, Optional
 from backend.core.calculator.base import (
     Method, MethodResult, ResonanceChannels)
 from backend.core.calculator.registry import get_method, list_methods
+from backend.core.calculator.res_x import (SCHEMES,
+                                           SCHEME_UNCONFIRMED,
+                                           extraction_options)
 from backend.core.report_generator import ReportGenerator
 from backend.core.vna_controller import (
     SimulatedMode, SimulatorConfig, SimulatedVNA, VNAController,
@@ -71,6 +74,16 @@ class MeasurementSession:
         if variant:
             self.params['variant'] = variant
         self.variant = variant
+        # ТЗ2-4/ТЗ3-2: схема включения резонатора (проходной 'through'/
+        # режектор 'notch') — обязательный параметр без значения по
+        # умолчанию: неподтверждённый дефолт менял tgδ в десятки раз.
+        self.scheme = str(params.get('scheme') or '')
+        if self.scheme not in SCHEMES:
+            raise APIError(
+                'Схема включения резонатора не выбрана: укажите '
+                f'одну из {SCHEMES} — {SCHEME_UNCONFIRMED}')
+        self.params['scheme'] = self.scheme
+        self._extract_opts = extraction_options(self.scheme)
         self.title = title
         self.id = uuid.uuid4().hex[:22]
         self.state = 'idle'
@@ -88,7 +101,8 @@ class MeasurementSession:
         vna = self.api.vna
         sweep = vna.measure_frequency_response()
         res = vna.find_resonance_parameters(
-            sweep['frequencies'], sweep['amplitudes'])
+            sweep['frequencies'], sweep['amplitudes'],
+            **self._extract_opts)
         self.base = {'sweep': sweep, 'resonance': res}
         self.state = 'base_done'
         return res
@@ -102,7 +116,8 @@ class MeasurementSession:
         vna = self.api.vna_sample
         sweep = vna.measure_frequency_response()
         res = vna.find_resonance_parameters(
-            sweep['frequencies'], sweep['amplitudes'])
+            sweep['frequencies'], sweep['amplitudes'],
+            **self._extract_opts)
         ch = ResonanceChannels.from_pair(
             self.base['resonance'], res)
         result = self.method.calculate(self.params, ch)
@@ -112,7 +127,8 @@ class MeasurementSession:
             resonance={
                 'fe': res.get('f0'), 'f1e': res.get('f1'),
                 'f2e': res.get('f2'), 'ae': res.get('a0'),
-                'qe': res.get('Q')},
+                'qe': res.get('Q'),
+                'depthe': res.get('depth_db')},
             result=result)
         self.samples.append(sample)
         return sample
@@ -145,17 +161,26 @@ class MeasurementSession:
                 'f2e': s.resonance.get('f2e'),
                 'ae': s.resonance.get('ae'),
                 'qe': s.resonance.get('qe'),
+                # ТЗ3-1: глубина провала кривой образца — иначе
+                # повторная обработка записи не сможет применить
+                # поправку режектора (extra_json образца)
+                'depthe': s.resonance.get('depthe'),
                 'e': e_val, 'tgo': s.result.values.get('tgo'),
                 'sweep_y': s.sweep_y,
                 'values': dict(s.result.values),
                 'errors': list(s.result.errors),
                 'warnings': list(s.result.warnings),
             })
+        # ТЗ3-1: глубина провала базовой кривой нужна для повторной
+        # обработки с поправкой режектора; хранится в params_json
+        # под служебным ключом (полей формы не дублирует)
+        params = dict(self.params)
+        params['_depth0'] = res.get('depth_db')
         return {
             'measure_id': self.id,
             'method_id': self.method.id,
             'title': self.title or self.id,
-            'params': self.params,
+            'params': params,
             'f0': res.get('f0'), 'f1': res.get('f1'),
             'f2': res.get('f2'), 'a0': res.get('a0'),
             'q0': res.get('Q'),
@@ -260,10 +285,18 @@ class MicronixAPI:
         errors = method.validate(params, variant)
         if errors:
             raise ParamsError(errors)
+        values = method.get_values(params, variant)
+        # ТЗ3-2: схема включения — обязательный явный выбор оператора,
+        # значения по умолчанию нет (не входит в inputs[] метода)
+        scheme = str(params.get('scheme') or '')
+        if scheme not in SCHEMES:
+            raise ParamsError([
+                'Схема включения резонатора не выбрана: укажите '
+                f'одну из {SCHEMES} — {SCHEME_UNCONFIRMED}'])
+        values['scheme'] = scheme
         self._ensure_connected()
         session = MeasurementSession(
-            self, method, method.get_values(params, variant),
-            variant, title)
+            self, method, values, variant, title)
         self.sessions[session.id] = session
         return session
 

@@ -15,7 +15,8 @@ from typing import Dict
 from .base import (CalculationError, Method, MethodInput, MethodResult,
                    ResonanceChannels)
 from .const import C, EB, E_RANGE, F_RANGE, TGO_RANGE, V11
-from .res_x import solve_tan_over_x
+from .res_x import (geometry_consistency_warning,
+                    solve_tan_over_x, unloaded_q)
 
 
 class FixedLengthMethod(Method):
@@ -55,6 +56,12 @@ class FixedLengthMethod(Method):
                 f"Неподходящая частота без образца f0 = {f0:.6g} Гц")
             return res
 
+        # ТЗ2-1: геометрическая согласованность — пустой резонатор H01p
+        # должен резонировать на измеренной f0 (не ошибка, а warning)
+        warn = geometry_consistency_warning(f0, 0.5 * D, L0, p)
+        if warn:
+            res.warnings.append(warn)
+
         try:
             a = 0.5 * D
             k2 = 2.0 * math.pi * fE * math.sqrt(EB) / C
@@ -82,23 +89,32 @@ class FixedLengthMethod(Method):
             res.errors.append(f"Ошибка расчёта: {exc}")
             return res
 
-        # Д-2: нагруженная добротность — по полосе кривой с образцом
+        # Д-2: нагруженная добротность — по полосе кривой с образцом;
+        # ТЗ2-4/ТЗ3-1: поправка на связь по схеме включения резонатора
+        # (для режектора — по глубине провала depth из ResonanceChannels).
+        # ТЗ3-2: значения по умолчанию нет — невыбранная/неизвестная
+        # схема даёт контролируемую ошибку, tgδ не считается.
+        scheme = str(params.get('scheme') or '')
         Q0 = f0 / (f2 - f1)
         QE = fE / (f2E - f1E)
-        Q00 = Q0 / (1.0 - 10.0 ** (0.05 * A0))
-        Q0E = QE / (1.0 - 10.0 ** (0.05 * AE))
-        tgo = (1.0 / K1E) * (1.0 / Q0E - nu / Q00)
+        tgo = None
+        try:
+            Q00 = unloaded_q(Q0, A0, scheme, resonance.depth0)
+            Q0E = unloaded_q(QE, AE, scheme, resonance.depthe)
+            tgo = (1.0 / K1E) * (1.0 / Q0E - nu / Q00)
+        except CalculationError as exc:
+            res.errors.append(str(exc))
 
         if not (E_RANGE[0] <= E <= E_RANGE[1]):
             res.errors.append(
                 f"Неподходящая диэлектрическая проницаемость E = {E:.6g}")
-        if not (TGO_RANGE[0] <= tgo <= TGO_RANGE[1]):
+        if tgo is not None and not (TGO_RANGE[0] <= tgo <= TGO_RANGE[1]):
             res.errors.append(
                 "Неподходящий тангенс угла диэлектрических потерь "
                 f"tgo = {tgo:.6g}")
 
         res.values = {'E': E, 'tgo': tgo, 'Q0': Q0, 'QE': QE,
-                      'x': x, 'K1E': K1E}
+                      'x': x, 'K1E': K1E, 'nu': nu, 'G': G}
         return res
 
 

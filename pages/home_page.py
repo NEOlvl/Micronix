@@ -8,7 +8,6 @@ from PyQt6.QtWidgets import QHBoxLayout, QWidget, QVBoxLayout, QGridLayout, QMai
 from pages.base_page import BasePage
 from widget_factory import WidgetFactory
 from widgets import HeaderWidget, MethodCard
-from styles import Styles
 
 
 class HomePage(BasePage):
@@ -29,19 +28,7 @@ class HomePage(BasePage):
 
     def create_section_title(self, text, font_size=20):
         """Создание заголовка секции с единым стилем"""
-        label = QLabel(text)
-        label.setStyleSheet(f"""
-            QLabel {{
-                color: white !important;
-                font-size: {font_size}px !important;
-                font-weight: 700 !important;
-                background: transparent !important;
-                margin-bottom: 10px !important;
-                font-family: 'Segoe UI', Arial, sans-serif !important;
-                padding: 0 !important;
-            }}
-        """)
-        return label
+        return WidgetFactory.create_label(text, role="h2")
 
     def clear_layout(self):
         """Clear the default layout"""
@@ -61,15 +48,17 @@ class HomePage(BasePage):
         # Убираем все отступы у header
         self.header.setContentsMargins(0, 0, 0, 0)
 
-        # Делаем header полностью фиолетовым - точное продолжение сайдбара
-        self.header.setStyleSheet(f"""
-            QWidget {{
-                background: #7879F1;
-                border: none;
-                margin: 0;
-                padding: 0;
-            }}
-        """)
+        # Фиолетовая шапка — продолжение сайдбара, единый стиль
+        # из темы (#accentHeader). Внутри — название страницы.
+        self.header.setObjectName("accentHeader")
+        self.header.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+
+        header_layout = QHBoxLayout(self.header)
+        header_layout.setContentsMargins(30, 0, 30, 0)
+        page_title = QLabel("Главная")
+        page_title.setProperty("role", "accentTitle")
+        header_layout.addWidget(page_title)
+        header_layout.addStretch()
 
         # Добавляем в layout без отступов
         self.layout.addWidget(self.header)
@@ -80,14 +69,6 @@ class HomePage(BasePage):
         # Create scroll area
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
-        scroll_area.setStyleSheet("""
-            QScrollArea {
-                border: none;
-                background: transparent;
-                margin: 0;
-                padding: 0;
-            }
-        """)
 
         # Create content widget
         content_widget = QWidget()
@@ -111,7 +92,6 @@ class HomePage(BasePage):
 
         # Method cards grid - теперь 3 карточки в ряд (упрощенные)
         grid_widget = QWidget()
-        grid_widget.setStyleSheet("background: transparent;")
         grid_layout = QGridLayout(grid_widget)
         grid_layout.setSpacing(15)
         grid_layout.setContentsMargins(0, 0, 0, 20)
@@ -157,10 +137,8 @@ class HomePage(BasePage):
 
     def setup_recent_measurements(self):
         """Setup recent measurements section"""
-        # УБИРАЕМ разделитель или делаем его тоньше
-        separator = QWidget()
-        separator.setFixedHeight(1)
-        separator.setStyleSheet("background: rgba(255, 255, 255, 0.05);")  # Более светлый, но менее заметный
+        # Разделитель секций
+        separator = WidgetFactory.create_divider()
         self.content_layout.addWidget(separator)
 
         # Create section header with "View all" button
@@ -173,23 +151,8 @@ class HomePage(BasePage):
 
         all_measures_btn = WidgetFactory.create_button(
             "все исследования >",
-            style="secondary"
+            style="link"
         )
-        all_measures_btn.setStyleSheet("""
-            QPushButton {
-                background: transparent !important;
-                color: #7879F1 !important;
-                border: none !important;
-                font-size: 14px !important;
-                padding: 0 !important;
-                font-weight: 600 !important;
-                margin: 0 !important;
-            }
-            QPushButton:hover {
-                color: #6A6BE1 !important;
-                text-decoration: underline !important;
-            }
-        """)
         all_measures_btn.clicked.connect(self.show_all_measurements)
         header_layout.addWidget(all_measures_btn)
 
@@ -220,22 +183,8 @@ class HomePage(BasePage):
 
         all_reports_btn = WidgetFactory.create_button(
             "все отчёты >",
-            style="secondary"
+            style="link"
         )
-        all_reports_btn.setStyleSheet("""
-            QPushButton {
-                background: transparent;
-                color: #7879F1;
-                border: none;
-                font-size: 14px;
-                padding: 0;
-                font-weight: 600;
-            }
-            QPushButton:hover {
-                color: #6A6BE1;
-                text-decoration: underline;
-            }
-        """)
         all_reports_btn.clicked.connect(self.show_all_reports)
         header_layout.addWidget(all_reports_btn)
 
@@ -478,19 +427,9 @@ class HomePage(BasePage):
         from PyQt6.QtCore import QSize
 
         card = ModernCard()
+        card.setProperty("clickable", True)
         card.setFixedHeight(140)  # Уменьшаем высоту для компактности
         card.setCursor(Qt.CursorShape.PointingHandCursor)
-        card.setStyleSheet("""
-            ModernCard {
-                background: rgba(30, 31, 34, 0.9);
-                border: 1px solid rgba(255, 255, 255, 0.1);
-                border-radius: 12px;
-            }
-            ModernCard:hover {
-                background: rgba(40, 41, 44, 0.95);
-                border: 1px solid #7879F1;
-            }
-        """)
 
         card_layout = QHBoxLayout(card)
         card_layout.setContentsMargins(15, 15, 15, 15)
@@ -498,69 +437,41 @@ class HomePage(BasePage):
 
         # ЛЕВАЯ ЧАСТЬ: Мини-график с изображением
         graph_container = QFrame()
+        graph_container.setObjectName("graphPreview")
         graph_container.setFixedSize(160, 100)  # Фиксированный размер для графика
-        graph_container.setStyleSheet(f"""
-            QFrame {{
-                background: {Styles.BACKGROUND_DARK};
-                border-radius: 8px;
-                border: 1px solid rgba(255, 255, 255, 0.1);
-                padding: 5px;  # Добавляем отступ для изображения
-            }}
-        """)
-
-        # Создаем QLabel для отображения изображения
-        graph_image = QLabel()
-        graph_image.setFixedSize(150, 90)  # Немного меньше контейнера
-        graph_image.setScaledContents(True)  # Масштабируем изображение под размер
-        graph_image.setStyleSheet("""
-            QLabel {
-                border-radius: 6px;
-                background: transparent;
-            }
-        """)
-
-        # Загружаем изображение из файла
-        try:
-            # Убедитесь, что путь к файлу правильный
-            # Если папка img находится в корне проекта, то:
-            image_path = "img/graf.png"
-            # Или используйте абсолютный путь, если нужно:
-            # image_path = os.path.join(os.path.dirname(__file__), "..", "img", "graf.png")
-
-            pixmap = QPixmap(image_path)
-            if not pixmap.isNull():
-                # Масштабируем изображение под размер QLabel
-                pixmap = pixmap.scaled(graph_image.size(),
-                                       Qt.AspectRatioMode.KeepAspectRatio,
-                                       Qt.TransformationMode.SmoothTransformation)
-                graph_image.setPixmap(pixmap)
-            else:
-                # Если изображение не загрузилось, показываем текст
-                graph_image.setText("📊")
-                graph_image.setAlignment(Qt.AlignmentFlag.AlignCenter)
-                graph_image.setStyleSheet("""
-                    QLabel {
-                        color: rgba(255, 255, 255, 0.5);
-                        font-size: 24px;
-                        border-radius: 6px;
-                    }
-                """)
-        except Exception as e:
-            # В случае ошибки показываем текст
-            print(f"Ошибка загрузки изображения: {e}")
-            graph_image.setText("📊")
-            graph_image.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            graph_image.setStyleSheet("""
-                QLabel {
-                    color: rgba(255, 255, 255, 0.5);
-                    font-size: 24px;
-                    border-radius: 6px;
-                }
-            """)
 
         graph_layout = QVBoxLayout(graph_container)
-        graph_layout.addWidget(graph_image)
         graph_layout.setContentsMargins(0, 0, 0, 0)
+
+        if measure.get('x') and measure.get('y_res'):
+            # Мини-график АЧХ из данных записи (спарклайн)
+            from widgets.sparkline import SparklineWidget
+            graph_layout.addWidget(SparklineWidget(
+                measure['x'], measure['y_res'], parent=graph_container))
+        else:
+            # Нет кривой (демо-записи) — статичная картинка/заглушка
+            graph_image = QLabel()
+            graph_image.setFixedSize(150, 90)
+            graph_image.setScaledContents(True)
+
+            try:
+                pixmap = QPixmap("img/graf.png")
+                if not pixmap.isNull():
+                    pixmap = pixmap.scaled(graph_image.size(),
+                                           Qt.AspectRatioMode.KeepAspectRatio,
+                                           Qt.TransformationMode.SmoothTransformation)
+                    graph_image.setPixmap(pixmap)
+                else:
+                    graph_image.setText("📊")
+                    graph_image.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                    graph_image.setProperty("role", "imagePlaceholder")
+            except Exception as e:
+                print(f"Ошибка загрузки изображения: {e}")
+                graph_image.setText("📊")
+                graph_image.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                graph_image.setProperty("role", "imagePlaceholder")
+
+            graph_layout.addWidget(graph_image)
 
         card_layout.addWidget(graph_container)
 
@@ -580,34 +491,29 @@ class HomePage(BasePage):
 
         title = WidgetFactory.create_label(
             f"{method_name} • #{measure.get('title', 'Unknown')}",
-            font_size=15,
-            bold=True
+            role="h3"
         )
-        title.setStyleSheet("color: white;")
 
         # Время измерения
         time_str = measure.get('time', 'Неизвестно')
         time_label = WidgetFactory.create_label(
             f"📅 {time_str}",
-            color="rgba(255, 255, 255, 0.6)",
-            font_size=12
+            role="caption"
         )
 
         # Информация об образце
-        sample_info = WidgetFactory.create_label("")
+        sample_info = WidgetFactory.create_label("", role="caption")
         if measure.get('y_samples'):
             sample = list(measure['y_samples'].values())[0]
             sample_name = sample.get('name', 'Неизвестно')
             sample_info.setText(f"📋 {sample_name}")
-            sample_info.setStyleSheet("color: rgba(255, 255, 255, 0.6); font-size: 12px;")
 
         # Результаты (если есть)
-        results_label = WidgetFactory.create_label("")
+        results_label = WidgetFactory.create_label("", role="accent")
         if measure.get('y_samples'):
             sample = list(measure['y_samples'].values())[0]
             if 'tgo' in sample and 'E' in sample:
                 results_label.setText(f"📈 tgδ: {sample['tgo']:.2e} • ε: {sample['E']:.2f}")
-                results_label.setStyleSheet("color: #7879F1; font-size: 11px; font-weight: 600;")
 
         # Добавляем все элементы
         info_layout.addWidget(title)
@@ -638,77 +544,34 @@ class HomePage(BasePage):
         from widgets import ModernCard
 
         card = ModernCard()
+        card.setProperty("clickable", True)
         card.setFixedHeight(120)
         card.setCursor(Qt.CursorShape.PointingHandCursor)
-
-        # ОДИНАКОВЫЙ СТИЛЬ для всех карточек
-        card.setStyleSheet(f"""
-            ModernCard {{
-                background: rgba(30, 31, 34, 0.9);
-                border: 1px solid rgba(120, 121, 241, 0.3);
-                border-radius: 12px;
-            }}
-            ModernCard:hover {{
-                background: rgba(40, 41, 44, 0.95);
-                border: 1px solid #7879F1;
-                box-shadow: 0 4px 12px rgba(120, 121, 241, 0.2);
-            }}
-        """)
 
         card_layout = QHBoxLayout(card)
         card_layout.setContentsMargins(20, 15, 20, 15)
         card_layout.setSpacing(15)
 
         # Report icon - ОДИНАКОВЫЙ для всех отчётов
-        icon_widget = WidgetFactory.create_label("📄", font_size=24, align="center")
+        icon_widget = WidgetFactory.create_label("📄", role="iconBadge", align="center")
         icon_widget.setFixedSize(50, 50)
-        icon_widget.setStyleSheet(f"""
-            background: rgba(120, 121, 241, 0.2); 
-            color: #7879F1;
-            border: 1px solid rgba(120, 121, 241, 0.4);
-            border-radius: 8px;
-        """)
 
         # Report info
         info_layout = QVBoxLayout()
         info_layout.setSpacing(6)
 
         # Title
-        report_title = WidgetFactory.create_label(
-            title,
-            font_size=14,
-            bold=True
-        )
-        report_title.setStyleSheet("color: white;")
+        report_title = WidgetFactory.create_label(title, role="h3")
 
         # Method type (цветной тег)
         method_label = QLabel(f" {method_type} ")
-        method_label.setStyleSheet("""
-            QLabel {
-                color: #7879F1;
-                font-size: 10px;
-                font-weight: 600;
-                background: rgba(120, 121, 241, 0.1);
-                border: 1px solid rgba(120, 121, 241, 0.3);
-                border-radius: 4px;
-                padding: 2px 6px;
-                margin-right: 8px;
-            }
-        """)
+        method_label.setProperty("role", "methodBadge")
 
         # Description
-        desc_label = WidgetFactory.create_label(
-            description,
-            color="rgba(255, 255, 255, 0.7)",
-            font_size=11
-        )
+        desc_label = WidgetFactory.create_label(description, role="small")
 
         # Date
-        date_label = WidgetFactory.create_label(
-            f"📅 {date}",
-            color="rgba(255, 255, 255, 0.5)",
-            font_size=11
-        )
+        date_label = WidgetFactory.create_label(f"📅 {date}", role="small")
 
         # Верхняя строка: заголовок и тег метода
         top_row = QHBoxLayout()

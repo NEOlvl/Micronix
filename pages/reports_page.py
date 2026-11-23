@@ -7,7 +7,6 @@ from PyQt6.QtWidgets import QHBoxLayout, QVBoxLayout, QWidget, QGridLayout
 from pages.base_page import BasePage
 from widget_factory import WidgetFactory
 from widgets import HeaderWidget
-from styles import Styles
 
 
 class ReportsPage(BasePage):
@@ -100,7 +99,7 @@ class ReportsPage(BasePage):
         if not measurements:
             empty = WidgetFactory.create_label(
                 "Нет сохранённых измерений",
-                color=Styles.TEXT_SECONDARY, font_size=14)
+                role="subtitle")
             self.grid_layout.addWidget(empty, 0, 0)
             return
 
@@ -131,6 +130,7 @@ class ReportsPage(BasePage):
         from widgets import ModernCard
 
         card = ModernCard()
+        card.setProperty("clickable", True)
         card.setFixedHeight(120)
 
         card_layout = QHBoxLayout(card)
@@ -153,11 +153,7 @@ class ReportsPage(BasePage):
         )
 
         # Date
-        date_label = WidgetFactory.create_label(
-            date,
-            color=Styles.TEXT_SECONDARY,
-            font_size=13
-        )
+        date_label = WidgetFactory.create_label(date, role="subtitle")
 
         info_layout.addWidget(title_label)
         info_layout.addWidget(date_label)

@@ -4,11 +4,9 @@ Enhanced Header Widget with optional breadcrumbs
 
 from typing import Optional, List, Tuple, Callable
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-                             QPushButton, QSpacerItem, QSizePolicy, QGraphicsDropShadowEffect)
+                             QPushButton, QSpacerItem, QSizePolicy)
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QFont, QColor
 from widget_factory import WidgetFactory
-from styles import Styles
 from widgets.animated_button import AnimatedButton
 
 
@@ -26,38 +24,6 @@ class HeaderWidget(QWidget):
 
     # Конфигурация кнопок
     MAIN_ACTION_TEXT = "Новое исследование"
-    ACTION_BUTTON_STYLES = {
-        'primary': """
-            QPushButton {{
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                    stop:0 #7879F1, stop:1 #9A9BFF);
-                color: white;
-                border: none;
-                border-radius: 8px;
-                padding: 12px 24px;
-                font-weight: 600;
-                font-size: 14px;
-            }}
-            QPushButton:hover {{
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                    stop:0 #6A6BE1, stop:1 #8A8BEF);
-            }}
-        """,
-        'secondary': """
-            QPushButton {{
-                background: rgba(255, 255, 255, 0.1);
-                color: {text_color};
-                border: 1px solid {border_color};
-                border-radius: 8px;
-                padding: 12px 24px;
-                font-weight: 600;
-                font-size: 14px;
-            }}
-            QPushButton:hover {{
-                background: rgba(255, 255, 255, 0.15);
-            }}
-        """
-    }
 
     def __init__(self, title: str = "", subtitle: str = "", parent=None):
         """
@@ -102,14 +68,8 @@ class HeaderWidget(QWidget):
 
     def _setup_widget_styles(self):
         """Setup widget styles"""
-        self.setMinimumHeight(80)
-        self.setMaximumHeight(120)
-        self.setStyleSheet(f"""
-            HeaderWidget {{
-                background: {Styles.BACKGROUND_MEDIUM};
-                border-bottom: 1px solid {Styles.BORDER_LIGHT};
-            }}
-        """)
+        self.setFixedHeight(100)
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
 
     def _create_title_section(self, title: str, subtitle: str,
                               breadcrumbs: Optional[List[Tuple[str, Callable]]]) -> QVBoxLayout:
@@ -138,13 +98,7 @@ class HeaderWidget(QWidget):
 
         # Status icon (hidden by default)
         self.status_icon = QLabel()
-        self.status_icon.setStyleSheet(f"""
-            QLabel {{
-                color: {Styles.PRIMARY_LIGHT};
-                font-size: 12px;
-                margin-right: 8px;
-            }}
-        """)
+        self.status_icon.setProperty("role", "statusIcon")
         self.status_icon.hide()
 
         # Main title
@@ -158,11 +112,7 @@ class HeaderWidget(QWidget):
 
     def _create_subtitle_label(self, subtitle: str) -> QLabel:
         """Create subtitle label"""
-        return WidgetFactory.create_label(
-            subtitle,
-            color=Styles.TEXT_SECONDARY,
-            font_size=14
-        )
+        return WidgetFactory.create_label(subtitle, role="subtitle")
 
     def _setup_breadcrumbs(self, parent_layout: QVBoxLayout,
                            breadcrumbs: List[Tuple[str, Callable]]) -> None:
@@ -184,28 +134,14 @@ class HeaderWidget(QWidget):
     def _add_breadcrumb_separator(self, layout: QHBoxLayout) -> None:
         """Add separator between breadcrumbs"""
         sep = QLabel("›")
-        sep.setStyleSheet(f"color: {Styles.TEXT_SECONDARY}; font-size: 12px;")
+        sep.setProperty("role", "caption")
         sep.setFixedWidth(10)
         layout.addWidget(sep)
 
     def _create_breadcrumb_button(self, layout: QHBoxLayout, text: str,
                                   callback: Optional[Callable]) -> QPushButton:
         """Create a breadcrumb button"""
-        breadcrumb = QPushButton(text)
-        breadcrumb.setStyleSheet(f"""
-            QPushButton {{
-                color: {Styles.TEXT_SECONDARY};
-                background: transparent;
-                border: none;
-                font-size: 13px;
-                padding: 0;
-                font-weight: 400;
-            }}
-            QPushButton:hover {{
-                color: {Styles.PRIMARY_LIGHT};
-                text-decoration: underline;
-            }}
-        """)
+        breadcrumb = WidgetFactory.create_button(text, style="link")
         breadcrumb.setCursor(Qt.CursorShape.PointingHandCursor)
 
         if callback:
@@ -232,41 +168,15 @@ class HeaderWidget(QWidget):
         except (ImportError, AttributeError):
             btn = QPushButton(self.MAIN_ACTION_TEXT)
 
-        btn.setStyleSheet("""
-            QPushButton {
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                    stop:0 #7879F1, stop:1 #9A9BFF);
-                color: white;
-                border: none;
-                border-radius: 8px;
-                padding: 12px 24px;
-                font-weight: 600;
-                font-size: 14px;
-            }
-            QPushButton:hover {
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                    stop:0 #6A6BE1, stop:1 #8A8BEF);
-            }
-        """)
-
+        btn.setProperty("btnStyle", "primary")
+        btn.setCursor(Qt.CursorShape.PointingHandCursor)
         return btn
 
     def add_action_button(self, text: str, callback: Optional[Callable] = None,
                           style: str = "secondary", icon: Optional[str] = None) -> QPushButton:
         """Add custom action button to header"""
         btn_text = f"{icon} {text}" if icon else text
-        btn = QPushButton(btn_text)
-
-        # Apply style
-        if style == "primary":
-            btn.setStyleSheet(self.ACTION_BUTTON_STYLES['primary'])
-        else:
-            formatted_style = self.ACTION_BUTTON_STYLES['secondary'].format(
-                text_color=Styles.TEXT_PRIMARY,
-                border_color=Styles.BORDER_MEDIUM
-            )
-            btn.setStyleSheet(formatted_style)
-
+        btn = WidgetFactory.create_button(btn_text, style=style)
         btn.setCursor(Qt.CursorShape.PointingHandCursor)
 
         if callback:

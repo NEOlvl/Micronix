@@ -2,9 +2,8 @@
 Main window
 """
 
-from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-                             QStackedWidget, QGraphicsDropShadowEffect, QPushButton)
+                             QStackedWidget, QPushButton)
 from backend.api.micronix_api import MicronixAPI
 from widgets import GradientBackground
 from pages import HomePage, MeasuresPage, MeasureDetailPage, ReportsPage, SettingsPage
@@ -37,14 +36,6 @@ class MicronixMainWindow(QMainWindow):
 
         # Create central widget with gradient background
         central_widget = GradientBackground()
-
-        # Add shadow effect
-        shadow = QGraphicsDropShadowEffect()
-        shadow.setBlurRadius(30)
-        shadow.setColor(QColor(0, 0, 0, 80))
-        shadow.setOffset(0, 5)
-        central_widget.setGraphicsEffect(shadow)
-
         self.setCentralWidget(central_widget)
 
         # Main layout

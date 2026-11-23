@@ -17,7 +17,7 @@ import pyqtgraph as pg
 
 from widgets import ModernCard, LoadingSpinner
 from widgets.measurement_graph import MeasurementGraphWidget
-from styles import Styles
+from styles import repolish
 
 
 class MeasurementProcessWidget(QWidget):
@@ -93,13 +93,9 @@ class MeasurementProcessWidget(QWidget):
     def setup_header(self, parent_layout):
         """Setup header with title and buttons"""
         header = QWidget()
+        header.setObjectName("pageHeader")
+        header.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         header.setFixedHeight(70)
-        header.setStyleSheet(f"""
-            QWidget {{
-                background: {Styles.BACKGROUND_MEDIUM};
-                border-bottom: 1px solid {Styles.BORDER_LIGHT};
-            }}
-        """)
 
         header_layout = QHBoxLayout(header)
         header_layout.setContentsMargins(25, 0, 25, 0)
@@ -107,25 +103,11 @@ class MeasurementProcessWidget(QWidget):
 
         # Title
         self.title_label = QLabel("Исследование #...")
-        self.title_label.setStyleSheet("""
-            QLabel {
-                color: white;
-                font-size: 18px;
-                font-weight: 600;
-                background: transparent;
-            }
-        """)
+        self.title_label.setProperty("role", "h2")
 
         # Progress percentage
         self.progress_percent = QLabel("0%")
-        self.progress_percent.setStyleSheet(f"""
-            QLabel {{
-                color: {Styles.PRIMARY};
-                font-size: 20px;
-                font-weight: 700;
-                background: transparent;
-            }}
-        """)
+        self.progress_percent.setProperty("role", "percent")
 
         header_layout.addWidget(self.title_label)
         header_layout.addStretch()
@@ -137,38 +119,14 @@ class MeasurementProcessWidget(QWidget):
 
         # Back button
         back_btn = QPushButton("Назад")
-        back_btn.setStyleSheet(f"""
-            QPushButton {{
-                color: white;
-                background: rgba(255, 255, 255, 0.1);
-                border: 1px solid {Styles.BORDER_MEDIUM};
-                padding: 10px 20px;
-                border-radius: 6px;
-                font-weight: 500;
-                min-width: 100px;
-            }}
-            QPushButton:hover {{
-                background: rgba(255, 255, 255, 0.15);
-            }}
-        """)
+        back_btn.setProperty("btnStyle", "secondary")
+        back_btn.setMinimumWidth(100)
         back_btn.clicked.connect(self.return_to_creation)
 
         # Stop button
         stop_btn = QPushButton("Остановить")
-        stop_btn.setStyleSheet(f"""
-            QPushButton {{
-                color: white;
-                background: rgba(239, 68, 68, 0.2);
-                border: 1px solid rgba(239, 68, 68, 0.4);
-                padding: 10px 20px;
-                border-radius: 6px;
-                font-weight: 500;
-                min-width: 120px;
-            }}
-            QPushButton:hover {{
-                background: rgba(239, 68, 68, 0.3);
-            }}
-        """)
+        stop_btn.setProperty("btnStyle", "danger")
+        stop_btn.setMinimumWidth(120)
         stop_btn.clicked.connect(self.stop_measurement)
 
         buttons_layout.addWidget(back_btn)
@@ -180,13 +138,9 @@ class MeasurementProcessWidget(QWidget):
     def setup_progress_info(self, parent_layout):
         """Setup progress information section"""
         progress_widget = QWidget()
+        progress_widget.setObjectName("progressPanel")
+        progress_widget.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         progress_widget.setFixedHeight(140)
-        progress_widget.setStyleSheet(f"""
-            QWidget {{
-                background: {Styles.BACKGROUND_LIGHT};
-                border-bottom: 1px solid {Styles.BORDER_LIGHT};
-            }}
-        """)
 
         progress_layout = QVBoxLayout(progress_widget)
         progress_layout.setContentsMargins(30, 20, 30, 20)
@@ -196,23 +150,10 @@ class MeasurementProcessWidget(QWidget):
         stage_layout = QHBoxLayout()
 
         self.stage_label = QLabel(f"Этап 1: {self.STAGES[0]}")
-        self.stage_label.setStyleSheet("""
-            QLabel {
-                color: white;
-                font-size: 16px;
-                font-weight: 600;
-                background: transparent;
-            }
-        """)
+        self.stage_label.setProperty("role", "h3")
 
         self.stage_desc = QLabel("Начало процесса измерения...")
-        self.stage_desc.setStyleSheet(f"""
-            QLabel {{
-                color: {Styles.TEXT_SECONDARY};
-                font-size: 14px;
-                background: transparent;
-            }}
-        """)
+        self.stage_desc.setProperty("role", "subtitle")
 
         stage_layout.addWidget(self.stage_label)
         stage_layout.addWidget(self.stage_desc)
@@ -242,24 +183,16 @@ class MeasurementProcessWidget(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
 
         bar = QWidget()
+        bar.setObjectName("progressSeg")
+        bar.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         if is_active:
-            bar.setStyleSheet(f"""
-                QWidget {{
-                    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                        stop:0 {Styles.PRIMARY}, 
-                        stop:1 {Styles.PRIMARY_LIGHT});
-                    border-radius: 4px;
-                }}
-            """)
+            bar.setProperty("state", "active")
             bar.setFixedWidth(0)
         else:
-            bar.setStyleSheet(f"""
-                QWidget {{
-                    background: {Styles.BORDER_LIGHT};
-                    border-radius: 4px;
-                }}
-            """)
-            bar.setFixedWidth(container.width())
+            # Неактивный сегмент — видимый трек на всю ширину
+            # контейнера (фиксировать ширину нельзя: до показа
+            # она равна 0 и сегмент был бы невидим).
+            bar.setProperty("state", "todo")
 
         layout.addWidget(bar)
         return container
@@ -279,15 +212,8 @@ class MeasurementProcessWidget(QWidget):
 
         # Graph title
         graph_title = QLabel("График измерения")
-        graph_title.setStyleSheet("""
-            QLabel {
-                color: white;
-                font-size: 16px;
-                font-weight: 600;
-                background: transparent;
-                padding: 5px 0;
-            }
-        """)
+        graph_title.setProperty("role", "h3")
+        graph_title.setContentsMargins(0, 5, 0, 5)
         graph_layout.addWidget(graph_title)
 
         # Main graph widget
@@ -324,33 +250,12 @@ class MeasurementProcessWidget(QWidget):
 
         # Заголовок
         file_title = QLabel("Работа с данными измерений")
-        file_title.setStyleSheet("""
-            QLabel {
-                color: white;
-                font-size: 14px;
-                font-weight: 600;
-                background: transparent;
-            }
-        """)
+        file_title.setProperty("role", "h3")
 
         # Кнопка выбора файла
         self.select_file_btn = QPushButton("Выбрать файл данных")
+        self.select_file_btn.setProperty("btnStyle", "secondary")
         self.select_file_btn.clicked.connect(self.select_data_file)
-        self.select_file_btn.setStyleSheet(f"""
-            QPushButton {{
-                background: rgba(255, 255, 255, 0.1);
-                color: white;
-                border: 1px solid {Styles.BORDER_MEDIUM};
-                border-radius: 6px;
-                padding: 8px 16px;
-                font-weight: 500;
-                font-size: 13px;
-            }}
-            QPushButton:hover {{
-                background: rgba(255, 255, 255, 0.15);
-                border: 1px solid {Styles.PRIMARY};
-            }}
-        """)
 
         top_row.addWidget(file_title)
         top_row.addStretch()
@@ -358,13 +263,7 @@ class MeasurementProcessWidget(QWidget):
 
         # Информация о выбранном файле
         self.file_info_label = QLabel("Файл не выбран")
-        self.file_info_label.setStyleSheet(f"""
-            QLabel {{
-                color: {Styles.TEXT_SECONDARY};
-                font-size: 12px;
-                background: transparent;
-            }}
-        """)
+        self.file_info_label.setProperty("role", "caption")
         self.file_info_label.setWordWrap(True)
 
         file_layout.addLayout(top_row)
@@ -389,7 +288,7 @@ class MeasurementProcessWidget(QWidget):
         # Separator
         separator = QFrame()
         separator.setFrameShape(QFrame.Shape.HLine)
-        separator.setStyleSheet(f"background: {Styles.BORDER_LIGHT};")
+        separator.setObjectName("divider")
         separator.setFixedHeight(1)
         panel_layout.addWidget(separator)
 
@@ -419,27 +318,12 @@ class MeasurementProcessWidget(QWidget):
 
         # Status title
         self.status_title = QLabel("Исследование в процессе")
-        self.status_title.setStyleSheet("""
-            QLabel {
-                color: white;
-                font-size: 16px;
-                font-weight: 600;
-                text-align: center;
-                background: transparent;
-            }
-        """)
+        self.status_title.setProperty("role", "h3")
         self.status_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         # Status description
         self.status_desc = QLabel("Пожалуйста, ожидайте завершения процесса.")
-        self.status_desc.setStyleSheet(f"""
-            QLabel {{
-                color: {Styles.TEXT_SECONDARY};
-                font-size: 14px;
-                text-align: center;
-                background: transparent;
-            }}
-        """)
+        self.status_desc.setProperty("role", "subtitle")
         self.status_desc.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.status_desc.setWordWrap(True)
 
@@ -457,32 +341,12 @@ class MeasurementProcessWidget(QWidget):
 
         # Title
         sample_title = QLabel("Добавление образца")
-        sample_title.setStyleSheet("""
-            QLabel {
-                color: white;
-                font-size: 14px;
-                font-weight: 600;
-                background: transparent;
-                margin-bottom: 5px;
-            }
-        """)
+        sample_title.setProperty("role", "h3")
+        sample_title.setContentsMargins(0, 0, 0, 5)
 
         # Input field
         self.sample_name_input = QLineEdit()
         self.sample_name_input.setPlaceholderText("Введите имя образца")
-        self.sample_name_input.setStyleSheet(f"""
-            QLineEdit {{
-                background: rgba(255, 255, 255, 0.1);
-                border: 1px solid {Styles.BORDER_MEDIUM};
-                border-radius: 6px;
-                padding: 12px;
-                color: white;
-                font-size: 14px;
-            }}
-            QLineEdit:focus {{
-                border: 1px solid {Styles.PRIMARY};
-            }}
-        """)
         self.sample_name_input.setEnabled(False)
 
         layout.addWidget(sample_title)
@@ -499,55 +363,14 @@ class MeasurementProcessWidget(QWidget):
 
         # Continue button
         self.continue_btn = QPushButton("Добавить образец")
-        self.continue_btn.setStyleSheet(f"""
-            QPushButton {{
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                    stop:0 {Styles.PRIMARY}, stop:1 {Styles.PRIMARY_LIGHT});
-                color: white;
-                border: none;
-                padding: 14px;
-                border-radius: 8px;
-                font-weight: 600;
-                font-size: 14px;
-                transition: all 0.2s ease;
-            }}
-            QPushButton:hover {{
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                    stop:0 {Styles.PRIMARY_DARK}, stop:1 {Styles.PRIMARY});
-                transform: scale(1.02);
-            }}
-            QPushButton:disabled {{
-                background: {Styles.BORDER_LIGHT};
-                color: {Styles.TEXT_DISABLED};
-            }}
-        """)
+        self.continue_btn.setProperty("btnStyle", "primary")
         self.continue_btn.clicked.connect(self.add_sample)
         self.continue_btn.setEnabled(False)
         self.continue_btn.setFixedHeight(50)
 
         # Finish button
         self.finish_btn = QPushButton("Завершить исследование")
-        self.finish_btn.setStyleSheet(f"""
-            QPushButton {{
-                color: white;
-                background: rgba(255, 255, 255, 0.1);
-                border: 1px solid {Styles.BORDER_MEDIUM};
-                padding: 14px;
-                border-radius: 8px;
-                font-weight: 600;
-                font-size: 14px;
-                transition: all 0.2s ease;
-            }}
-            QPushButton:hover {{
-                background: rgba(255, 255, 255, 0.15);
-                border: 1px solid {Styles.PRIMARY};
-            }}
-            QPushButton:disabled {{
-                background: {Styles.BORDER_LIGHT};
-                color: {Styles.TEXT_DISABLED};
-                border: 1px solid {Styles.BORDER_LIGHT};
-            }}
-        """)
+        self.finish_btn.setProperty("btnStyle", "secondary")
         self.finish_btn.clicked.connect(self.finish_measurement)
         self.finish_btn.setEnabled(False)
         self.finish_btn.setFixedHeight(50)
@@ -569,25 +392,12 @@ class MeasurementProcessWidget(QWidget):
 
         # Title
         info_title = QLabel("Информация об измерении")
-        info_title.setStyleSheet("""
-            QLabel {
-                color: white;
-                font-size: 16px;
-                font-weight: 600;
-                background: transparent;
-            }
-        """)
+        info_title.setProperty("role", "h3")
         panel_layout.addWidget(info_title)
 
         # Scrollable info content
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
-        scroll_area.setStyleSheet("""
-            QScrollArea {
-                border: none;
-                background: transparent;
-            }
-        """)
 
         self.info_content = QWidget()
         self.info_layout = QVBoxLayout(self.info_content)
@@ -665,10 +475,18 @@ class MeasurementProcessWidget(QWidget):
                         self.progress_percent.setText(f"{percent}%")
 
                 else:
-                    # Переходим к следующему этапу
+                    # Завершаем текущий сегмент и переходим дальше
+                    current_bar.setFixedWidth(parent_width)
+                    current_bar.setProperty("state", "done")
+                    repolish(current_bar)
                     self.current_stage += 1
 
                     if self.current_stage < len(self.STAGES):
+                        next_bar = self.bars[self.current_stage]
+                        if next_bar:
+                            next_bar.setProperty("state", "active")
+                            repolish(next_bar)
+                            next_bar.setFixedWidth(0)
                         # Активируем следующий этап
                         self.update_stage_info()
 
@@ -774,16 +592,7 @@ class MeasurementProcessWidget(QWidget):
         4. Убедитесь в отсутствии зазоров
         5. Нажмите 'Продолжить'
         """)
-        instruction.setStyleSheet(f"""
-            QLabel {{
-                color: {Styles.TEXT_SECONDARY};
-                font-size: 14px;
-                background: transparent;
-                padding: 15px;
-                border: 1px solid rgba(255, 255, 255, 0.1);
-                border-radius: 8px;
-            }}
-        """)
+        instruction.setProperty("role", "infoBox")
         instruction.setWordWrap(True)
 
         self.info_layout.addWidget(instruction)
@@ -1067,6 +876,8 @@ class MeasurementProcessWidget(QWidget):
                 parent = bar.parent()
                 if parent:
                     bar.setFixedWidth(parent.width())
+                bar.setProperty("state", "done")
+                repolish(bar)
             self.progress_percent.setText("100%")
 
             if hasattr(self, 'status_title'):

@@ -16,7 +16,8 @@ from .base import (CalculationError, Method, MethodInput, MethodResult,
                    ResonanceChannels)
 from .const import (C, EB, F_RANGE, MSR9_E_RANGE, MSR9_TGO_RANGE,
                     V11)
-from .res_x import solve_for_x_1, solve_for_x_2
+from .res_x import (geometry_consistency_warning,
+                    solve_for_x_1, solve_for_x_2, unloaded_q)
 
 # частота отсечки резонатора: fc = C * V11 / (2*pi*a*sqrt(EB))
 
@@ -31,7 +32,11 @@ class UniversalResonatorMethod(Method):
     inputs = (
         MethodInput('t', 'Толщина образца', 'мм', (0.5, 6.0)),
         MethodInput('D', 'Диаметр резонатора', 'мм', (5.0, 200.0)),
-        MethodInput('L0', 'Длина резонатора', 'мм', (10.0, 500.0)),
+        # ТЗ3-6: по ГОСТ §11 (таблица) L0 = 2L — длина ПУСТОГО
+        # резонатора при опущенном поршне; воздушные секции по L0/2,
+        # с образцом полость L0 + t
+        MethodInput('L0', 'Длина пустого резонатора L0 (= 2L)',
+                    'мм', (10.0, 500.0)),
         MethodInput('p', 'Индекс волны p (1 или 3)', '', (1.0, 3.0),
                     default=1.0),
     )
@@ -57,6 +62,16 @@ class UniversalResonatorMethod(Method):
                 res.errors.append(f"Неправильное значение {name} = {f:.6g} Гц")
                 return res
 
+        # ТЗ2-1: геометрическая согласованность — пустой резонатор H01p
+        # должен резонировать на измеренной f0 (не ошибка, а warning).
+        # ТЗ3-6: f0 снимается с пустого резонатора — поршень опущен,
+        # полость = L0 (= 2L по ГОСТ §11); с образцом поршень поднят
+        # на t и полость L0 + t (см. также множитель G ниже).
+        warn = geometry_consistency_warning(f0, 0.5 * D, L0, p)
+        if warn:
+            res.warnings.append(warn)
+
+        tg0 = None
         try:
             a = 0.5 * D
             L = L0 / 2.0
@@ -89,12 +104,19 @@ class UniversalResonatorMethod(Method):
                               + (L0 + t))
             Q0 = f0 / (f2 - f1)
             QE = fE / (f2E - f1E)  # Д-2: полоса нагруженного резонанса
-            Q00 = Q0 / (1.0 - 10.0 ** (0.05 * A0))
-            Q0E = QE / (1.0 - 10.0 ** (0.05 * AE))
-            n = (G * math.sqrt(f0 / fE) * (V11 / (k2 * a)) ** 2
-                 * (F1 * t / a + Rii * n_extra)
-                 / (E * t * F1 + Rii * L0 * F2))
-            tg0 = (1.0 / K1E) * (1.0 / Q0E - n / Q00)
+            # ТЗ2-4/ТЗ3-1: поправка на связь по схеме включения
+            # (для режектора — по глубине провала); ТЗ3-2: дефолта
+            # нет — невыбранная/неизвестная схема не роняет расчёт E
+            scheme = str(params.get('scheme') or '')
+            try:
+                Q00 = unloaded_q(Q0, A0, scheme, resonance.depth0)
+                Q0E = unloaded_q(QE, AE, scheme, resonance.depthe)
+                n = (G * math.sqrt(f0 / fE) * (V11 / (k2 * a)) ** 2
+                     * (F1 * t / a + Rii * n_extra)
+                     / (E * t * F1 + Rii * L0 * F2))
+                tg0 = (1.0 / K1E) * (1.0 / Q0E - n / Q00)
+            except CalculationError as exc:
+                res.errors.append(str(exc))
         except (CalculationError, ValueError, ZeroDivisionError,
                 OverflowError) as exc:
             res.errors.append(f"Ошибка расчёта: {exc}")
@@ -103,7 +125,8 @@ class UniversalResonatorMethod(Method):
         if not (MSR9_E_RANGE[0] <= E <= MSR9_E_RANGE[1]):
             res.errors.append(
                 f"Неподходящая диэлектрическая проницаемость E = {E:.6g}")
-        if not (MSR9_TGO_RANGE[0] <= tg0 <= MSR9_TGO_RANGE[1]):
+        if tg0 is not None and not (
+                MSR9_TGO_RANGE[0] <= tg0 <= MSR9_TGO_RANGE[1]):
             res.errors.append(
                 f"Неподходящий тангенс угла диэлектрических потерь "
                 f"tgo = {tg0:.6g}")

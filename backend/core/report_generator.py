@@ -116,6 +116,19 @@ class ReportGenerator:
             pdf.cell(0, 8, f'Метод: {method_id}',
                      new_x='LMARGIN', new_y='NEXT')
 
+        # ТЗ2-4: схема включения резонатора — явный параметр протокола.
+        # ТЗ3-3: как и в GUI — фактическая схема установки не
+        # подтверждена заказчиком (вопрос 4.1 ТЗ-2), в протокол
+        # выносится та же пометка, а не «установленный факт»
+        scheme = (record.get('params') or {}).get('scheme')
+        if scheme:
+            scheme_ru = ('проходной (пик |S21|)' if scheme == 'through'
+                         else 'режектор (провал |S21|)')
+            pdf.cell(0, 8,
+                     f'Схема включения резонатора: {scheme_ru} '
+                     '— не подтверждена',
+                     new_x='LMARGIN', new_y='NEXT')
+
         f0 = record.get('f0')
         if f0:
             pdf.cell(0, 8,
@@ -154,6 +167,19 @@ class ReportGenerator:
                 row = table.row()
                 for cell in data_row:
                     row.cell(cell)
+
+        # --- предупреждения расчёта (ТЗ2-1: несогласованность геометрии) ---
+        warns = [
+            f"{s.get('name') or 'образец'}: {w}"
+            for s in samples for w in (s.get('warnings') or [])]
+        if warns:
+            pdf.ln(4)
+            pdf.set_font('T', 'B', 10)
+            pdf.cell(0, 7, 'Предупреждения:',
+                     new_x='LMARGIN', new_y='NEXT')
+            pdf.set_font('T', '', 10)
+            for w in warns:
+                pdf.multi_cell(0, 6, w)
 
         pdf.ln(12)
         pdf.set_font('T', 'B', 12)

@@ -57,27 +57,10 @@ class MeasurementGraphWidget(QWidget):
 
         # Селектор образцов
         sample_label = QLabel("Образец:")
-        sample_label.setStyleSheet("color: white; font-size: 14px; font-weight: 600;")
+        sample_label.setProperty("role", "h3")
 
         self.sample_combo = QComboBox()
-        self.sample_combo.setStyleSheet("""
-            QComboBox {
-                background: rgba(40, 41, 44, 0.9);
-                border: 1px solid rgba(255, 255, 255, 0.2);
-                border-radius: 6px;
-                padding: 8px 12px;
-                color: white;
-                min-width: 200px;
-            }
-            QComboBox::drop-down {
-                border: none;
-            }
-            QComboBox QAbstractItemView {
-                background: rgba(40, 41, 44, 0.95);
-                color: white;
-                selection-background-color: #7879F1;
-            }
-        """)
+        self.sample_combo.setMinimumWidth(200)
         self.sample_combo.currentTextChanged.connect(self.on_sample_changed)
 
         control_layout.addWidget(sample_label)
@@ -131,15 +114,9 @@ class MeasurementGraphWidget(QWidget):
     def setup_info_panel(self, parent_layout):
         """Setup information panel for measurement details"""
         self.info_panel = QWidget()
+        self.info_panel.setObjectName("infoPanel")
+        self.info_panel.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.info_panel.setMaximumHeight(120)
-        self.info_panel.setStyleSheet("""
-            QWidget {
-                background: rgba(30, 31, 34, 0.9);
-                border: 1px solid rgba(255, 255, 255, 0.1);
-                border-radius: 8px;
-                padding: 15px;
-            }
-        """)
 
         self.info_layout = QHBoxLayout(self.info_panel)
         self.info_layout.setSpacing(20)
@@ -412,23 +389,12 @@ class MeasurementGraphWidget(QWidget):
 
         # Label
         label_widget = QLabel(label)
-        label_widget.setStyleSheet(f"""
-            QLabel {{
-                color: rgba(255, 255, 255, 0.7);
-                font-size: 11px;
-                font-weight: 500;
-            }}
-        """)
+        label_widget.setProperty("role", "infoKey")
 
-        # Value
+        # Value — цвет динамический (семантика параметра)
         value_widget = QLabel(value)
-        value_widget.setStyleSheet(f"""
-            QLabel {{
-                color: {color};
-                font-size: 14px;
-                font-weight: 600;
-            }}
-        """)
+        value_widget.setProperty("role", "infoValue")
+        value_widget.setStyleSheet(f"color: {color};")
 
         item_layout.addWidget(label_widget)
         item_layout.addWidget(value_widget)

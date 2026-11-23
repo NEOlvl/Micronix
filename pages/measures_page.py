@@ -7,7 +7,6 @@ from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QLa
 from pages.base_page import BasePage
 from widget_factory import WidgetFactory
 from widgets import HeaderWidget
-from styles import Styles
 
 
 class MeasuresPage(BasePage):
@@ -128,6 +127,7 @@ class MeasuresPage(BasePage):
         from PyQt6.QtWidgets import QFrame
 
         card = ModernCard()
+        card.setProperty("clickable", True)
         card.setFixedHeight(160)  # Чуть больше для страницы измерений
         card.setCursor(Qt.CursorShape.PointingHandCursor)
 
@@ -137,28 +137,22 @@ class MeasuresPage(BasePage):
 
         # ЛЕВАЯ ЧАСТЬ: График
         graph_container = QFrame()
+        graph_container.setObjectName("graphPreview")
         graph_container.setFixedSize(180, 120)
-        graph_container.setStyleSheet(f"""
-            QFrame {{
-                background: {Styles.BACKGROUND_DARK};
-                border-radius: 8px;
-                border: 1px solid rgba(255, 255, 255, 0.1);
-            }}
-        """)
 
-        # Заглушка графика
-        graph_label = QLabel("📈")
-        graph_label.setStyleSheet("""
-            QLabel {
-                font-size: 32px;
-                color: rgba(255, 255, 255, 0.5);
-                background: transparent;
-            }
-        """)
-        graph_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
+        # Мини-график АЧХ из данных записи (спарклайн);
+        # если кривой нет — заглушка
         graph_layout = QVBoxLayout(graph_container)
-        graph_layout.addWidget(graph_label)
+        graph_layout.setContentsMargins(0, 0, 0, 0)
+        if measure.get('x') and measure.get('y_res'):
+            from widgets.sparkline import SparklineWidget
+            graph_layout.addWidget(SparklineWidget(
+                measure['x'], measure['y_res'], parent=graph_container))
+        else:
+            graph_label = QLabel("📈")
+            graph_label.setProperty("role", "graphPlaceholder")
+            graph_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            graph_layout.addWidget(graph_label)
 
         card_layout.addWidget(graph_container)
 
@@ -177,18 +171,12 @@ class MeasuresPage(BasePage):
         method_id = measure.get('method_id')
         method_title = method_names.get(method_id, f"Метод {method_id}")
 
-        title = WidgetFactory.create_label(
-            method_title,
-            font_size=16,
-            bold=True
-        )
-        title.setStyleSheet("color: white;")
+        title = WidgetFactory.create_label(method_title, role="h3")
 
         # ID и время
         measure_id_label = WidgetFactory.create_label(
             f"#{measure['title']} • {measure['time']}",
-            color=Styles.TEXT_SECONDARY,
-            font_size=13
+            role="subtitle"
         )
 
         # Результаты образцов
@@ -200,8 +188,7 @@ class MeasuresPage(BasePage):
                                f"\u03b5={sample.get('E') or 0:.2f}")
                 result_label = WidgetFactory.create_label(
                     result_text,
-                    color="rgba(255, 255, 255, 0.8)",
-                    font_size=13
+                    role="subtitle"
                 )
                 info_layout.addWidget(result_label)
 

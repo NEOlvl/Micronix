@@ -56,10 +56,28 @@ class TestNewMeasurementPage:
         assert {'a', 'b'} <= set(page._param_fields)
         page.deleteLater()
 
+    def test_missing_scheme_blocks_start(self, app, api):
+        """ТЗ3-2: без явного выбора схемы измерение не стартует."""
+        from pages.new_measurement_page import NewMeasurementPage
+        page = NewMeasurementPage(api)
+        page.select_method('mfd')
+        page._param_fields['t'].setText('1.0')
+        page._param_fields['D'].setText('45')
+        page._param_fields['L0'].setText('80')
+        page.scheme_combo.setCurrentIndex(0)   # «— выберите схему —»
+        emitted = []
+        page.measurement_started.connect(emitted.append)
+        page.start_measurement()
+        assert not emitted
+        assert not page.error_label.isHidden()
+        assert 'хем' in page.error_label.text()
+        page.deleteLater()
+
     def test_validation_blocks_start(self, app, api):
         from pages.new_measurement_page import NewMeasurementPage
         page = NewMeasurementPage(api)
         page.select_method('mfd')
+        page.scheme_combo.setCurrentIndex(1)   # 'notch'
         page._param_fields['t'].setText('99')  # вне диапазона
         page._param_fields['D'].setText('45')
         page._param_fields['L0'].setText('80')
@@ -72,6 +90,7 @@ class TestNewMeasurementPage:
         from pages.new_measurement_page import NewMeasurementPage
         page = NewMeasurementPage(api)
         page.select_method('mfd')
+        page.scheme_combo.setCurrentIndex(1)   # 'notch'
         page._param_fields['t'].setText('1.0')
         page._param_fields['D'].setText('45')
         page._param_fields['L0'].setText('80')
@@ -93,7 +112,8 @@ class TestProcessWidgetFlow:
             MeasurementProcessWidget)
 
         session = api.start_measurement(
-            'mfd', {'t': 1.0, 'D': 45.0, 'L0': 80.0}, title='T')
+            'mfd', {'t': 1.0, 'D': 45.0, 'L0': 80.0, 'scheme': 'notch'},
+            title='T')
         widget = MeasurementProcessWidget(api, {
             'session_id': session.id,
             'measurement_id': session.id,

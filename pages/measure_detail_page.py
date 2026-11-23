@@ -67,8 +67,7 @@ class MeasureDetailPage(BasePage):
         self.measure_title = WidgetFactory.create_title("Вычисление #...", level=1)
         self.measure_info = WidgetFactory.create_label(
             "CABAN R180 • RESONATOR 1 • 20.10.2024 17:56:46",
-            color=Styles.TEXT_SECONDARY,
-            font_size=14
+            role="subtitle"
         )
 
         title_section.addWidget(self.measure_title)
@@ -87,6 +86,7 @@ class MeasureDetailPage(BasePage):
         graph_layout.setContentsMargins(0, 0, 0, 0)
 
         self.graph = MeasurementGraphWidget()
+        self.graph.setMinimumHeight(400)
         self.graph.plot_widget.setBackground(Styles.BACKGROUND_DARK)
         graph_layout.addWidget(self.graph)
 
@@ -99,7 +99,8 @@ class MeasureDetailPage(BasePage):
         # Set initial sizes
         splitter.setSizes([700, 300])
 
-        parent_layout.addWidget(splitter, 1)
+        # График занимает основную часть высоты (3:1 к таблице)
+        parent_layout.addWidget(splitter, 3)
 
     def create_info_panel(self):
         """Create side info panel"""
@@ -137,6 +138,7 @@ class MeasureDetailPage(BasePage):
 
         # Create table
         self.results_table = ResultsTableWidget()
+        self.results_table.setMaximumHeight(180)
         parent_layout.addWidget(self.results_table, 1)
 
     def load_measurement(self, measure_id):
@@ -197,8 +199,9 @@ class MeasureDetailPage(BasePage):
         # Add sample info
         if data.get('y_samples'):
             for sample_idx, sample in data['y_samples'].items():
-                sample_title = WidgetFactory.create_label(str(sample.get('name') or sample_idx), font_size=15, bold=True)
-                sample_title.setStyleSheet("margin-top: 15px;")
+                self.info_layout.addSpacing(10)
+                sample_title = WidgetFactory.create_label(
+                    str(sample.get('name') or sample_idx), role="h3")
                 self.info_layout.addWidget(sample_title)
 
                 # Sample details — реальные значения из записи
@@ -211,8 +214,7 @@ class MeasureDetailPage(BasePage):
 
                 details_label = WidgetFactory.create_label(
                     details_text.strip(),
-                    color=Styles.TEXT_SECONDARY,
-                    font_size=13
+                    role="subtitle"
                 )
                 self.info_layout.addWidget(details_label)
 

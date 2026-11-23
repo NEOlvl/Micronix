@@ -7,7 +7,6 @@ from PyQt6.QtWidgets import (QWidget, QHBoxLayout, QVBoxLayout, QFormLayout, QCo
                              QCheckBox, QGroupBox)
 from pages.base_page import BasePage
 from widget_factory import WidgetFactory
-from styles import Styles
 
 
 class SettingsPage(BasePage):
@@ -38,8 +37,9 @@ class SettingsPage(BasePage):
     def setup_sidebar(self):
         """Setup sidebar menu"""
         sidebar = QWidget()
+        sidebar.setObjectName("settingsSidebar")
+        sidebar.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         sidebar.setFixedWidth(280)
-        sidebar.setStyleSheet(f"background: {Styles.BACKGROUND_LIGHT};")
 
         sidebar_layout = QVBoxLayout(sidebar)
         sidebar_layout.setContentsMargins(0, 0, 0, 0)
@@ -47,7 +47,7 @@ class SettingsPage(BasePage):
 
         # Settings title
         title = WidgetFactory.create_title("Настройки", level=1)
-        title.setStyleSheet("padding: 30px;")
+        title.setContentsMargins(30, 25, 30, 10)
         sidebar_layout.addWidget(title)
 
         # Settings categories
@@ -69,34 +69,18 @@ class SettingsPage(BasePage):
             # Category label
             category_label = WidgetFactory.create_label(
                 category_name,
-                color=Styles.TEXT_DISABLED,
-                font_size=12,
-                bold=True
+                role="navCategory"
             )
-            category_label.setStyleSheet("padding: 20px 30px 10px 30px;")
+            category_label.setContentsMargins(30, 18, 30, 6)
             sidebar_layout.addWidget(category_label)
 
             # Category items
             for item_name, item_icon in items:
                 item_btn = WidgetFactory.create_button(
                     item_name,
-                    style="secondary"
+                    style="navSub"
                 )
-                item_btn.setFixedHeight(50)
-                item_btn.setStyleSheet("""
-                    QPushButton {
-                        background: transparent;
-                        color: rgba(255, 255, 255, 0.7);
-                        border: none;
-                        text-align: left;
-                        padding-left: 30px;
-                        font-size: 14px;
-                    }
-                    QPushButton:hover {
-                        background: rgba(255, 255, 255, 0.05);
-                        color: white;
-                    }
-                """)
+                item_btn.setFixedHeight(44)
                 sidebar_layout.addWidget(item_btn)
 
         sidebar_layout.addStretch()
@@ -175,7 +159,6 @@ class SettingsPage(BasePage):
         language_label = WidgetFactory.create_label("Язык:")
         language_combo = QComboBox()
         language_combo.addItems(["Русский", "English", "Deutsch"])
-        language_combo.setStyleSheet(Styles.INPUT_FIELD)
         form_layout.addRow(language_label, language_combo)
 
         section_layout.addLayout(form_layout)
@@ -197,31 +180,11 @@ class SettingsPage(BasePage):
 
         # Theme selector
         theme_group = QGroupBox("Тема")
-        theme_group.setStyleSheet(f"""
-            QGroupBox {{
-                color: {Styles.TEXT_PRIMARY};
-                font-size: 14px;
-                font-weight: 600;
-                border: 1px solid {Styles.BORDER_MEDIUM};
-                border-radius: 8px;
-                margin-top: 12px;
-                padding-top: 10px;
-            }}
-            QGroupBox::title {{
-                subcontrol-origin: margin;
-                left: 10px;
-                padding: 0 8px;
-            }}
-        """)
-
         theme_layout = QVBoxLayout(theme_group)
 
         dark_theme = QCheckBox("Темная тема")
         light_theme = QCheckBox("Светлая тема")
         dark_theme.setChecked(True)
-
-        dark_theme.setStyleSheet(f"color: {Styles.TEXT_PRIMARY};")
-        light_theme.setStyleSheet(f"color: {Styles.TEXT_PRIMARY};")
 
         theme_layout.addWidget(dark_theme)
         theme_layout.addWidget(light_theme)
@@ -231,7 +194,6 @@ class SettingsPage(BasePage):
         # Animation toggle
         animations_check = QCheckBox("Включить анимации")
         animations_check.setChecked(True)
-        animations_check.setStyleSheet(f"color: {Styles.TEXT_PRIMARY}; margin-top: 15px;")
         section_layout.addWidget(animations_check)
 
         return section
@@ -258,9 +220,8 @@ class SettingsPage(BasePage):
 
         sounds_check = QCheckBox("Звуковые уведомления")
 
-        # Style checkboxes
+        # Style checkboxes — из единой темы
         for checkbox in [email_check, push_check, sounds_check]:
-            checkbox.setStyleSheet(f"color: {Styles.TEXT_PRIMARY}; padding: 5px 0;")
             section_layout.addWidget(checkbox)
 
         return section

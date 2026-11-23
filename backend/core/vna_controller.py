@@ -161,9 +161,9 @@ class VNAController:
                 and np.isfinite(amplitudes).all()):
             raise VNAError("Ответ прибора содержит NaN или Inf")
 
-    def find_resonance_parameters(self, frequencies, amplitudes):
+    def find_resonance_parameters(self, frequencies, amplitudes, **kwargs):
         """Параметры резонанса АЧХ (ТЗ-5, backend.core.data_processor)."""
-        return extract_resonance_db(frequencies, amplitudes)
+        return extract_resonance_db(frequencies, amplitudes, **kwargs)
 
 
 # ---------------------------------------------------------------------
