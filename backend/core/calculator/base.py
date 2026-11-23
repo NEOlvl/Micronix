@@ -148,7 +148,11 @@ class Method:
         """
         errors: List[str] = []
         for spec in self.applicable_inputs(variant):
-            raw = params.get(spec.name, spec.default)
+            raw = params.get(spec.name)
+            if isinstance(raw, str) and not raw.strip():
+                raw = None            # пустое поле формы -> default
+            if raw is None:
+                raw = spec.default
             if raw is None:
                 if spec.required:
                     errors.append(
@@ -173,7 +177,11 @@ class Method:
         """Числовые значения параметров с подстановкой default."""
         values = {}
         for spec in self.applicable_inputs(variant):
-            raw = params.get(spec.name, spec.default)
+            raw = params.get(spec.name)
+            if isinstance(raw, str) and not raw.strip():
+                raw = None
+            if raw is None:
+                raw = spec.default
             values[spec.name] = float(raw) if raw is not None else None
         return values
 

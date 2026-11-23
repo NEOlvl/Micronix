@@ -14,7 +14,8 @@ from typing import Dict
 
 from .base import (CalculationError, Method, MethodInput, MethodResult,
                    ResonanceChannels)
-from .const import C, EB, E_RANGE, F_RANGE, TGO_RANGE, V11
+from .const import (C, EB, F_RANGE, MSR9_E_RANGE, MSR9_TGO_RANGE,
+                    V11)
 from .res_x import solve_for_x_1, solve_for_x_2
 
 # частота отсечки резонатора: fc = C * V11 / (2*pi*a*sqrt(EB))
@@ -99,10 +100,10 @@ class UniversalResonatorMethod(Method):
             res.errors.append(f"Ошибка расчёта: {exc}")
             return res
 
-        if not (E_RANGE[0] <= E <= E_RANGE[1]):
+        if not (MSR9_E_RANGE[0] <= E <= MSR9_E_RANGE[1]):
             res.errors.append(
                 f"Неподходящая диэлектрическая проницаемость E = {E:.6g}")
-        if not (TGO_RANGE[0] <= tg0 <= TGO_RANGE[1]):
+        if not (MSR9_TGO_RANGE[0] <= tg0 <= MSR9_TGO_RANGE[1]):
             res.errors.append(
                 f"Неподходящий тангенс угла диэлектрических потерь "
                 f"tgo = {tg0:.6g}")

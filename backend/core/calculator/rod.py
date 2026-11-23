@@ -7,7 +7,12 @@
 - Д-3: корень уравнения J1(x)/(x*J0(x)) — скобочный поиск по ветвям
   между нулями J0 (устаревший fsolve(..., x0=2) мог уйти на другую ветвь)
 - Д-4: необъяснённый делитель E/3.2 вынесен в калибровочный параметр
-  e_calibration (по умолчанию 3.2 — поведение эталона сохранено)
+  e_calibration (по умолчанию 1.0 — строго по ГОСТ; значение 3.2
+  было эмпирической поправкой легаси без нормативного основания)
+- Д-15: Z0(yb) = J0(yb) - [J1(yb)/N1(yb)]*N0(yb) — в легаси вместо
+  J1(yb)/N1(yb) вычислялись J0(y*b^2)/N0(y*b^2)
+- Д-17: продольный индекс p (h = p*pi/L) — входной параметр (1..3),
+  в легаси был глобально зашит p=2
 """
 
 import math
@@ -17,7 +22,7 @@ from scipy.special import jv, yn
 
 from .base import (CalculationError, Method, MethodInput, MethodResult,
                    ResonanceChannels)
-from .const import C, EB, F_RANGE, P_WAVE, TGO_RANGE
+from .const import (C, EB, F_RANGE, SO_E_RANGE, SO_TGO_RANGE)
 from .res_x import solve_bessel_ratio
 
 
@@ -32,8 +37,10 @@ class RodSampleMethod(Method):
         MethodInput('a', 'Радиус образца', 'мм', (1.5, 6.5)),
         MethodInput('R0', 'Радиус резонатора', 'мм', (5.0, 100.0)),
         MethodInput('L', 'Длина резонатора', 'мм', (10.0, 200.0)),
-        MethodInput('e_calibration', 'Калибровочный коэффициент ε', '',
-                    (0.1, 10.0), default=3.2),
+        MethodInput('p', 'Продольный индекс колебания H01p', '',
+                    (1.0, 3.0), default=1.0),
+        MethodInput('e_calibration', 'Калибровочный коэффициент ε '
+                    '(в ГОСТ отсутствует)', '', (0.1, 10.0), default=1.0),
     )
     resonance_fields = ('f0', 'f1', 'f2', 'a0', 'fe', 'f1e', 'f2e', 'ae')
 
@@ -46,7 +53,8 @@ class RodSampleMethod(Method):
             return res
 
         v = self.get_values(params)
-        a, R0, L, e_cal = v['a'], v['R0'], v['L'], v['e_calibration']
+        a, R0, L = v['a'], v['R0'], v['L']
+        p, e_cal = v['p'], v['e_calibration']
         f0, f1, f2, A0 = resonance.f0, resonance.f1, resonance.f2, resonance.a0
         fE, f1E, f2E, AE = resonance.fe, resonance.f1e, resonance.f2e, resonance.ae
         if not (F_RANGE[0] <= f0 <= F_RANGE[1]):
@@ -58,7 +66,7 @@ class RodSampleMethod(Method):
             D = 2.0 * R0
             d = 2.0 * a
             k2 = 2.0 * math.pi * fE * math.sqrt(EB) / C
-            h = P_WAVE * math.pi / L
+            h = p * math.pi / L
             y = math.sqrt((k2 * a) ** 2 - (h * a) ** 2)
             b = D / d
 
@@ -80,10 +88,9 @@ class RodSampleMethod(Method):
 
             J0_x, J1_x, J2_x = jv(0, x), jv(1, x), jv(2, x)
             J0_yb = jv(0, y * b)
-            J1_ybb = jv(0, y * b ** 2)
             N0_yb = yn(0, y * b)
-            N1_ybb = yn(0, y * b ** 2)
-            Z0_yb = J0_yb - (J1_ybb / N1_ybb) * N0_yb
+            # Д-15: Z0(yb) по ГОСТ — с тем же коэффициентом J1(yb)/N1(yb)
+            Z0_yb = J0_yb - (J1_yb / N1_yb) * N0_yb
             Z2_y = jv(2, y) - (J1_yb / N1_yb) * yn(2, y)
 
             chisl_K1E = ((k2 * a) / y) ** 2 * (J0_x / Z0_y) ** 2 * \
@@ -99,7 +106,7 @@ class RodSampleMethod(Method):
                 + ((h * a) / y) ** 2 * (J0_x / Z0_y) ** 2 * \
                 (b ** 2 * Z0_yb ** 2 - Zy)
             znam_n = 4.0 * ((D - L) *
-                            (P_WAVE * C / (2.0 * L * f0 * math.sqrt(EB))) ** 2
+                            (p * C / (2.0 * L * f0 * math.sqrt(EB))) ** 2
                             + L) * (
                 ((k1 * a) / x) ** 2 * Jx
                 + ((k2 * a) / y) ** 2 * (J0_x / Z0_y) ** 2 *
@@ -111,9 +118,9 @@ class RodSampleMethod(Method):
             res.errors.append(f"Ошибка расчёта: {exc}")
             return res
 
-        if not (1.2 <= E <= 20.0):
+        if not (SO_E_RANGE[0] <= E <= SO_E_RANGE[1]):
             res.errors.append(f"Неподходящее значение E = {E:.6g}")
-        if not (TGO_RANGE[0] <= tgo <= TGO_RANGE[1]):
+        if not (SO_TGO_RANGE[0] <= tgo <= SO_TGO_RANGE[1]):
             res.errors.append(
                 f"Неподходящее значение tgo = {tgo:.6g}")
 

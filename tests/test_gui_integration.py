@@ -42,7 +42,7 @@ class TestNewMeasurementPage:
         from pages.new_measurement_page import NewMeasurementPage
         page = NewMeasurementPage(api)
         page.select_method('so')
-        assert set(page._param_fields) == {'a', 'R0', 'L',
+        assert set(page._param_fields) == {'a', 'R0', 'L', 'p',
                                            'e_calibration'}
         page.deleteLater()
 

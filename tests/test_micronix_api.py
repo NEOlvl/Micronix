@@ -27,7 +27,7 @@ class TestMethodMeta:
     def test_method_form(self, api):
         form = api.method_form('mfd')
         names = [i['name'] for i in form['inputs']]
-        assert names == ['t', 'D', 'L0']
+        assert names == ['t', 'D', 'L0', 'p']
         assert form['inputs'][0]['bounds'] == (0.5, 6.0)
 
     def test_method_form_variant_filters(self, api):

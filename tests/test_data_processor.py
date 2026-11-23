@@ -56,18 +56,49 @@ def test_clean_dip_recovers_f0_and_q():
     f0_true, q_true = 10e9, 400.0
     f, a = make_dip(f0=f0_true, q=q_true, noise_db=0.0)
     dx = f[1] - f[0]
-    r = extract_resonance(f, a)
+    # физическая добротность — в режиме 'half_power'
+    r = extract_resonance(f, a, bandwidth='half_power')
     assert abs(r.f0 - f0_true) < 2 * dx
     assert r.q == pytest.approx(q_true, rel=0.05)
     assert r.f1 < r.f0 < r.f2
     assert r.warnings == []
 
 
+def test_gost_bandwidth_mode():
+    """Прил. Г.3.1 ГОСТ 8.623-2015: полоса на уровне минус 3.01 дБ
+    от экстремума. Для провала глубиной 30 дБ это измеренная полоса
+    у дна — уже физической, Q выше."""
+    f, a = make_dip(f0=10e9, q=400.0, depth_db=30.0, noise_db=0.0)
+    r = extract_resonance(f, a, bandwidth='gost')
+    level = min(a) + 3.01
+    # границы — пересечения кривой уровня min+3.01 дБ у дна провала:
+    # внутри провала (около f0) a < level, снаружи a > level
+    i0 = int(np.argmin(a))
+    inside = a < level
+    # ближайшие точки выше уровня влево и вправо от минимума
+    i_left = np.max(np.nonzero(~inside[:i0])[0])
+    i_right = i0 + np.min(np.nonzero(~inside[i0:])[0])
+    assert f[i_left] < r.f1 < f[i_left + 1]
+    assert f[i_right - 1] < r.f2 < f[i_right]
+    # ГОСТ-полоса уже полосы половинной мощности -> Q гостовская выше
+    r_hp = extract_resonance(f, a, bandwidth='half_power')
+    assert r.q > r_hp.q
+
+
+def test_gost_mode_shallow_dip_raises():
+    """Провал мельче 3.01 дБ: по ГОСТ полоса не определяется."""
+    f, a = make_dip(depth_db=2.0, noise_db=0.0)
+    with pytest.raises(ResonanceError):
+        extract_resonance(f, a, bandwidth='gost')
+    r = extract_resonance(f, a, bandwidth='half_power')
+    assert r.warnings
+
+
 def test_noisy_dip_recovers_f0_and_q():
     f0_true, q_true = 9.7e9, 600.0
     f, a = make_dip(f0=f0_true, q=q_true, noise_db=0.5, seed=1)
     dx = f[1] - f[0]
-    r = extract_resonance(f, a)
+    r = extract_resonance(f, a, bandwidth='half_power')
     assert abs(r.f0 - f0_true) < 3 * dx
     assert r.q == pytest.approx(q_true, rel=0.15)
 
@@ -77,7 +108,7 @@ def test_sloped_baseline_is_handled():
     f0_true, q_true = 10.5e9, 1000.0
     f, a = make_dip(f0=f0_true, q=q_true, slope_db_per_ghz=4.0, noise_db=0.1, seed=2)
     dx = f[1] - f[0]
-    r = extract_resonance(f, a)
+    r = extract_resonance(f, a, bandwidth='half_power')
     assert abs(r.f0 - f0_true) < 3 * dx
     assert r.q == pytest.approx(q_true, rel=0.15)
 
@@ -90,7 +121,7 @@ def test_symmetric_noisy_dip():
     a = a.tolist()
     i = a.index(min(a))
     a[i - 40] = a[i]
-    r = extract_resonance(f, a)
+    r = extract_resonance(f, a, bandwidth='half_power')
     assert abs(r.f0 - f0_true) < 4 * (f[1] - f[0])
     assert r.q == pytest.approx(2000.0, rel=0.3)
 
@@ -98,7 +129,7 @@ def test_symmetric_noisy_dip():
 def test_peak_mode():
     f0_true, q_true = 10e9, 500.0
     f, a = make_peak(f0=f0_true, q=q_true, noise_db=0.2, seed=4)
-    r = extract_resonance(f, a, peak='peak')
+    r = extract_resonance(f, a, peak='peak', bandwidth='half_power')
     assert abs(r.f0 - f0_true) < 3 * (f[1] - f[0])
     assert r.q == pytest.approx(q_true, rel=0.15)
 
@@ -145,9 +176,10 @@ def test_nan_input_raises():
 
 
 def test_shallow_dip_warns_but_returns():
-    """Провал глубже 0, но мельче 3 дБ: предупреждение, результат есть."""
+    """Провал глубже 0, но мельче 3 дБ: предупреждение, результат есть
+    (в режиме half_power; в gost-режиме — контролируемая ошибка)."""
     f, a = make_dip(depth_db=2.0, noise_db=0.0)
-    r = extract_resonance(f, a)
+    r = extract_resonance(f, a, bandwidth='half_power')
     assert r.warnings
     assert r.q > 0
 

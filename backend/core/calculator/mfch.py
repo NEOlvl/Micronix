@@ -6,6 +6,10 @@
   полосе нагруженного резонанса, а не по полосе пустого
 - Д-3: корень уравнения — скобочный поиск наименьшего положительного
   корня (устаревший fsolve(..., x0=1) сходился на нефизичные ветви)
+- Д-12: параметр eta по ф.(7.8) — в легаси потерян знаменатель
+  [E*t*F1 + ksi*(LE-t)*F2] и скобки (v11/(k2*a))^2
+- Д-13: знак правой части уравнения (7.2): tgx/x - tg[h2*(delL+t)]/(h2t)=0,
+  в легаси решалось tgx/x + drob = 0
 """
 
 import math
@@ -13,7 +17,7 @@ from typing import Dict
 
 from .base import (CalculationError, Method, MethodInput, MethodResult,
                    ResonanceChannels)
-from .const import C, EB, E_RANGE, F_RANGE, P_WAVE, TGO_RANGE, V11
+from .const import C, EB, E_RANGE, F_RANGE, TGO_RANGE, V11
 from .res_x import solve_tan_over_x
 
 
@@ -30,6 +34,8 @@ class FixedFrequencyMethod(Method):
         MethodInput('D', 'Диаметр резонатора', 'мм', (5.0, 200.0)),
         MethodInput('L0', 'Длина резонатора', 'мм', (10.0, 500.0)),
         MethodInput('delL', 'Смещение поршня', 'мм', (0.0, 100.0)),
+        MethodInput('p', 'Продольный индекс колебания H01p', '',
+                    (2.0, 5.0), default=2.0),
     )
     resonance_fields = ('f0', 'f1', 'f2', 'a0', 'fe', 'f1e', 'f2e', 'ae')
 
@@ -42,7 +48,7 @@ class FixedFrequencyMethod(Method):
             return res
 
         v = self.get_values(params)
-        t, D, L0, delL = v['t'], v['D'], v['L0'], v['delL']
+        t, D, L0, delL, p = v['t'], v['D'], v['L0'], v['delL'], v['p']
         if not D > t:
             res.errors.append(
                 f"Неподходящее значение D = {D:g} или t = {t:g}")
@@ -58,7 +64,8 @@ class FixedFrequencyMethod(Method):
             a = 0.5 * D
             k2 = 2.0 * math.pi * f0 * math.sqrt(EB) / C
             h2 = math.sqrt(k2 ** 2 - (V11 / a) ** 2)
-            drob = math.tan(h2 * (delL + t)) / (h2 * t)
+            # Д-13: ур.(7.2) tgx/x - tg[h2*(delL+t)]/(h2*t) = 0
+            drob = -math.tan(h2 * (delL + t)) / (h2 * t)
             x = solve_tan_over_x(drob)
             E = (C / (2.0 * math.pi * f0)) ** 2 * \
                 ((x / t) ** 2 + (V11 / a) ** 2)
@@ -69,12 +76,14 @@ class FixedFrequencyMethod(Method):
             ksi = math.sin(x) ** 2 / math.sin(h2 * (LE - t)) ** 2
             K1E = 1.0 / (1.0 + ksi * (LE - t) * F2 / (E * t * F1))
             G = a * L0 / ((2.0 * a - L0) *
-                          (P_WAVE * C / (2.0 * L0 * f0 * math.sqrt(EB))) ** 2
+                          (p * C / (2.0 * L0 * f0 * math.sqrt(EB))) ** 2
                           + L0)
-            nu = G * (V11 / k2 * a) ** 2 * (
-                (x / V11) ** 2 * (a / t) ** 2 + F1 * t / a
-                + ksi * (((h2 * a) / V11) ** 2 + (LE - t) * F2 / a)
-                / E * t * F1 + ksi * (LE - t) * F2)
+            # Д-12: ф.(7.8) — числитель целиком делится на
+            # [E*t*F1 + ksi*(LE-t)*F2]; (v11/(k2*a))^2
+            nu = (G * (V11 / (k2 * a)) ** 2
+                  * ((x / V11) ** 2 * (a / t) ** 2 + t * F1 / a
+                     + ksi * ((h2 * a / V11) ** 2 + (LE - t) * F2 / a))
+                  / (E * t * F1 + ksi * (LE - t) * F2))
         except (CalculationError, ValueError, ZeroDivisionError,
                 OverflowError) as exc:
             res.errors.append(f"Ошибка расчёта: {exc}")

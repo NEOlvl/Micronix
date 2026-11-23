@@ -50,12 +50,12 @@ def _sweep(f_mode, q, depth_db=25.0, seed=1):
     return d['frequencies'], d['amplitudes']
 
 
-def _measure(method_id, params, f0, q0, fe, qe):
+def _measure(method_id, params, f0, q0, fe, qe, bandwidth='gost'):
     """Полный конвейер: два свипа -> экстракция -> расчёт метода."""
     xb, yb = _sweep(f0, q0, depth_db=30.0, seed=1)
     xs, ys = _sweep(fe, qe, depth_db=22.0, seed=2)
-    b = extract_resonance_db(xb, yb)
-    s = extract_resonance_db(xs, ys)
+    b = extract_resonance_db(xb, yb, bandwidth=bandwidth)
+    s = extract_resonance_db(xs, ys, bandwidth=bandwidth)
     ch = ResonanceChannels(f0=b['f0'], f1=b['f1'], f2=b['f2'], a0=b['A0'],
                            fe=s['f0'], f1e=s['f1'], f2e=s['f2'], ae=s['A0'])
     return get_method(method_id).calculate(params, ch)
@@ -87,11 +87,11 @@ def _solve_fe_for_e(method_id, params, e_target,
                     fe_lo=None, fe_hi=None, iters=25):
     """Обратная задача: ищем fe, дающее E = e_target.
 
-    E(fe) монотонно убывает по fe (минимум ~2.8 при fe>f0,
-    рост до ~5 при fe<f0 на этой геометрии).
+    E(fe) монотонно убывает по fe (диапазон ~3.7..6.6 на этой
+    геометрии при исправленном уравнении ГОСТ (8.2)).
     """
     fe_lo = fe_lo or F0 - 400e6   # больший E
-    fe_hi = fe_hi or F0 + 120e6   # меньший E
+    fe_hi = fe_hi or F0 + 500e6   # меньший E
     for _ in range(iters):
         mid = (fe_lo + fe_hi) / 2
         e_mid, _ = _e_for_fe(method_id, params, mid)
@@ -108,9 +108,9 @@ def _e_errors(result):
 
 
 @pytest.mark.parametrize('method_id,params,e_target', [
-    ('mfd', MFD_PARAMS, 3.0),
     ('mfd', MFD_PARAMS, 4.0),
-    ('mfd', MFD_PARAMS, 4.8),
+    ('mfd', MFD_PARAMS, 5.0),
+    ('mfd', MFD_PARAMS, 6.0),
 ])
 def test_inverse_e_roundtrip(method_id, params, e_target):
     """epsilon -> синтез fe -> конвейер -> восстановленная epsilon.
@@ -149,7 +149,11 @@ def test_inverse_e_so(fe):
 
 
 def _tgo_for_qe(qe):
-    r = _measure('so', SO_PARAMS, F0, Q0, fe=F0 - 150e6, qe=qe)
+    # физический tgo восстанавливается в режиме 'half_power': ГОСТ-
+    # полоса (min+3.01дБ) у синтезированного провала квантуется
+    # сеткой свипа и не возвращает физическую добротность
+    r = _measure('so', SO_PARAMS, F0, Q0, fe=F0 - 150e6, qe=qe,
+                 bandwidth='half_power')
     return r.values.get('tgo'), r
 
 
@@ -243,7 +247,7 @@ def _collect_archive_rows():
 def _roundtrip_rows():
     """Строки таблицы прямой/обратной задачи для отчёта."""
     out = []
-    for e_target in (3.0, 4.0, 4.8):
+    for e_target in (4.0, 5.0, 6.0):
         fe = _solve_fe_for_e('mfd', MFD_PARAMS, e_target)
         e_rec, _ = _e_for_fe('mfd', MFD_PARAMS, fe)
         out.append(('МФД', 'E', f'{e_target:.2f}', f'{e_rec:.3f}',
@@ -283,6 +287,18 @@ def _write_report(rows, e_ok, e_cmp, f_ok, f_cmp, nonphys):
     lines += [
         '',
         '## ТЗ-16.4 — сверка с архивными измерениями', '',
+        'Исправления по ГОСТ Р 8.623-2015, меняющие результат относительно',
+        'легаси-формул архива (систематические расхождения ожидаемы):',
+        '',
+        '- **СО**: удалён эмпирический делитель E/3.2 (в ГОСТ его нет,',
+        '  п.12.1) и продольный индекс p берётся из записи (архив: p=1,',
+        '  легаси считал с p=2). Архивные E≈3.2-3.4 у всех стержней —',
+        '  артефакт делителя: истинные значения ~9-11.',
+        '- **МФД**: уравнение (8.2) tg[h2(L0-t)] вместо легаси tg[h2(L0+t)].',
+        '- **МФЧ**: знак правой части (7.2) и знаменатель в eta (7.8).',
+        '- **СВЧФ**: формулы не менялись — совпадение с архивом',
+        '  показательно (но это унаследованная модель, НЕ ГОСТ 71432).',
+        '',
         f'- Файлов архива: **{len(rows)}**',
         f'- Базовый резонанс: совпадение частоты в пределах 10 МГц — '
         f'**{f_ok}/{f_cmp}**',
@@ -305,7 +321,12 @@ def _write_report(rows, e_ok, e_cmp, f_ok, f_cmp, nonphys):
             de = f"{s['de_pct']:.1f}" if 'de_pct' in s else '—'
             note = s.get('status') or ''
             if 'de_pct' in s:
-                note = '' if s['de_pct'] <= 15 else 'расхождение'
+                if s['de_pct'] <= 15:
+                    note = ''
+                elif row['method'] in ('so', 'mfch', 'mfd'):
+                    note = 'систематич. (исправленная формула ГОСТ)'
+                else:
+                    note = 'расхождение'
             elif isinstance(s.get('e_arch'), float) and isinstance(s.get('e_new'), float):
                 note = 'архив: E нефизично' if not _physical_e(s['e_arch']) else 'новое: E нефизично'
             if s.get('errors'):
@@ -337,8 +358,18 @@ def test_archive_comparison():
 
     # Базовые резонансы находятся почти всегда
     assert f_cmp >= 50 and f_ok / f_cmp >= 0.85
-    # При физичных записях в архиве большинство epsilon совпадает
-    assert e_cmp > 0 and e_ok / e_cmp >= 0.70
+    # Совпадение epsilon критично только для СВЧФ — его формулы не
+    # менялись. Для СО/МФЧ/МФД расхождения с архивом систематические:
+    # архивные E посчитаны дефектными формулами (Д-12..Д-17).
+    sv_ok = sv_cmp = 0
+    for row in rows:
+        if row['method'] != 'svchf':
+            continue
+        for s in row.get('samples', []):
+            if 'de_pct' in s:
+                sv_cmp += 1
+                sv_ok += s['de_pct'] <= 15.0
+    assert sv_cmp > 0 and sv_ok / sv_cmp >= 0.70
 
 
 # ----------------------------------------------------------------------

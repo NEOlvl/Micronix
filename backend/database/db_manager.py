@@ -243,9 +243,10 @@ _PARAM_KEY = re.compile(r'data\[\d+\]\[([a-zA-Z_]+)\]')
 # Нормализованные ключи архива -> имена inputs[] методов.
 # lambda применяется к значению перед записью.
 _PARAM_ALIASES: Dict[str, Dict[str, Any]] = {
-    'mfch': {'t': 't', 'd_res': 'D', 'h_res': 'L0', 'del_L': 'delL'},
-    'mfd': {'t': 't', 'd_res': 'D', 'h_res': 'L0'},
-    'so': {'d': 'a', 'h_res': 'L',
+    'mfch': {'t': 't', 'd_res': 'D', 'h_res': 'L0', 'del_L': 'delL',
+             'index': 'p'},
+    'mfd': {'t': 't', 'd_res': 'D', 'h_res': 'L0', 'index': 'p'},
+    'so': {'d': 'a', 'h_res': 'L', 'index': 'p',
            'd_res': ('R0', lambda v: v / 2)},  # в архиве диаметр, метод ждёт радиус
     'svchf': {'d_res': 'R', 'd_sample': 'r'},
 }

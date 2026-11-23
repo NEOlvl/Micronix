@@ -75,27 +75,45 @@ def test_out_of_range_result_reported_honestly():
     r = get_method('mfd').calculate({'t': 1.0, 'D': 45.0, 'L0': 80.0},
                                     make_res(f2e=9.95e9))
     assert not r.ok and r.errors
-    assert r.values['E'] == pytest.approx(83.9534326, rel=1e-6)
+    # Д-14: E из уравнения ГОСТ (8.2) tg[h2*(L0-t)] — не из легаси L0+t
+    assert r.values['E'] == pytest.approx(413.7908792, rel=1e-6)
 
 
 # --- Точность переноса (эталон main) ---
 
 def test_mfd_valid_case_values():
-    r = get_method('mfd').calculate({'t': 1.0, 'D': 45.0, 'L0': 80.0}, RES)
+    # Д-14: E по уравнению ГОСТ (8.2) tg[h2*(L0-t)]; фикстура
+    # подобрана под физичный результат (E 1.2..200, tgo в диапазоне)
+    res = make_res(f1e=9.8875e9, f2e=9.9125e9)   # полоса 25 МГц
+    r = get_method('mfd').calculate({'t': 3.0, 'D': 45.0, 'L0': 77.5}, res)
     assert r.ok
-    assert r.values['E'] == pytest.approx(83.9534326, rel=1e-6)
+    assert r.values['E'] == pytest.approx(3.948646, rel=1e-6)
+    assert 5e-5 <= r.values['tgo'] <= 1e-2
+
+
+def test_mfch_valid_case_gost():
+    # Д-12,13: знак правой части (7.2) и eta со знаменателем (7.8)
+    res = make_res(fe=10e9, f1e=9.989e9, f2e=10.011e9)
+    r = get_method('mfch').calculate(
+        {'t': 2.0, 'D': 45.0, 'L0': 60.0, 'delL': 5.0}, res)
+    assert r.ok
+    assert r.values['E'] == pytest.approx(12.1798, rel=1e-4)
     assert 5e-5 <= r.values['tgo'] <= 1e-2
 
 
 def test_rod_values_and_calibration():
+    # Д-17: продольный индекс p — параметр (ГОСТ п.12: p=1,2,3);
+    # архивные измерения использовали p=1. Д-4: e_calibration=1.0 по
+    # умолчанию — в ГОСТ (12.1) делителя нет.
     r = get_method('so').calculate({'a': 3.0, 'R0': 22.5, 'L': 40.0}, RES)
-    # эталон main: E_new = 4.270961017 при делителе 3.2
-    assert r.values['E'] == pytest.approx(4.270961017, rel=1e-6)
-    assert r.values['E_raw'] == pytest.approx(13.667075254, rel=1e-6)
-    # Д-4: калибровочный коэффициент настраивается
+    assert r.values['E'] == pytest.approx(19.649565, rel=1e-6)
+    assert r.values['E'] == pytest.approx(r.values['E_raw'], rel=1e-12)
+    # легаси-эталон воспроизводится при p=2 и e_calibration=3.2
     r1 = get_method('so').calculate(
-        {'a': 3.0, 'R0': 22.5, 'L': 40.0, 'e_calibration': 1.0}, RES)
-    assert r1.values['E'] == pytest.approx(r1.values['E_raw'], rel=1e-12)
+        {'a': 3.0, 'R0': 22.5, 'L': 40.0, 'p': 2.0,
+         'e_calibration': 3.2}, RES)
+    assert r1.values['E'] == pytest.approx(4.270961017, rel=1e-6)
+    assert r1.values['E_raw'] == pytest.approx(13.667075254, rel=1e-6)
 
 
 def test_loaded_q_uses_own_bandwidth():

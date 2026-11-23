@@ -8,8 +8,10 @@
    робастная линейная аппроксимация по краевым зонам диапазона
    с отбрасыванием точек, попавших в провалы.
 3. Переход в линейную шкалу мощности p = 10^(A/10).
-4. Уровень половинной мощности: w(f) = p_base(f) - p(f), порог w_max / 2
-   (для глубокого провала эквивалентно -3 дБ относительно базы).
+4. Границы полосы f1, f2 — два режима (параметр bandwidth):
+   'gost' (по умолчанию) — уровень минус 3.01 дБ от экстремума
+   (ГОСТ Р 8.623-2015, прил. Г.3.1); 'half_power' — половина
+   поглощаемой мощности от базовой линии.
 5. Частоты пересечений f1, f2 — линейная интерполяция между отсчётами.
 6. Уточнение f0 параболической интерполяцией минимума.
 
@@ -173,7 +175,8 @@ def extract_resonance(frequencies: Sequence[float],
                       amplitudes: Sequence[float],
                       peak: str = 'dip',
                       edge_fraction: float = 0.08,
-                      smooth: bool = True) -> ResonanceParameters:
+                      smooth: bool = True,
+                      bandwidth: str = 'gost') -> ResonanceParameters:
     """Выделить параметры резонанса из АЧХ.
 
     Args:
@@ -183,6 +186,12 @@ def extract_resonance(frequencies: Sequence[float],
               'peak' — резонанс как максимум.
         edge_fraction: доля точек по краям для оценки базовой линии.
         smooth: сглаживать кривую перед поиском.
+        bandwidth: способ определения полосы f1..f2:
+            'gost' — по ГОСТ Р 8.623-2015 прил. Г.3.1: уровень
+                минус 3.01 дБ от экстремума A0 (для провала —
+                A0 + 3.01 дБ; требует глубины >= 3.01 дБ);
+            'half_power' — полумощность от локальной базовой
+                линии (физически точнее для глубоких провалов).
 
     Returns:
         ResonanceParameters (f0, f1, f2, A0, baseline, Q и т.д.).
@@ -190,6 +199,9 @@ def extract_resonance(frequencies: Sequence[float],
     Raises:
         ResonanceError: резонанс не обнаружен или полоса не определяется.
     """
+    if bandwidth not in ('gost', 'half_power'):
+        raise ResonanceError(
+            f"Неизвестный режим полосы: {bandwidth!r}")
     f = np.asarray(frequencies, dtype=float)
     a = np.asarray(amplitudes, dtype=float)
     n = f.size
@@ -259,6 +271,11 @@ def extract_resonance(frequencies: Sequence[float],
             f"Резонансный провал относительно базовой линии не обнаружен "
             f"(глубина {depth_db:.2f} дБ < {_MIN_DEPTH_DB} дБ)")
     if depth_db < 3.01:
+        if bandwidth == 'gost':
+            raise ResonanceError(
+                f"Глубина резонанса {depth_db:.2f} дБ меньше 3.01 дБ — "
+                "полоса по уровню минус 3.01 дБ от экстремума "
+                "не определяется (прил. Г ГОСТ Р 8.623-2015)")
         warnings.append(
             f"Глубина резонанса {depth_db:.2f} дБ меньше 3 дБ — "
             "полоса половинной мощности выходит за глубину провала")
@@ -266,11 +283,19 @@ def extract_resonance(frequencies: Sequence[float],
         warnings.append(
             f"Малая глубина резонанса {depth_db:.2f} дБ — оценка Q шумозависима")
 
-    # Полоса половинной мощности — линейная интерполяция пересечений
-    # по сырым данным; при локальной базе поиск ограничен границами провала
-    half = w_max / 2.0
-    f1 = _find_half_power_crossing(f, w, half, i0, 'left', stop=bl)
-    f2 = _find_half_power_crossing(f, w, half, i0, 'right', stop=br)
+    # Границы полосы — линейная интерполяция пересечений по сырым
+    # данным; при локальной базе поиск ограничен границами провала
+    if bandwidth == 'gost':
+        # прил. Г.3.1: уровень минус 3.01 дБ от экстремума A0;
+        # для провала — 3.01 дБ выше минимума кривой
+        level_db = a0 + 3.01 * dip_sign
+        w_g = dip_sign * (level_db - a)
+        f1 = _find_half_power_crossing(f, w_g, 0.0, i0, 'left')
+        f2 = _find_half_power_crossing(f, w_g, 0.0, i0, 'right')
+    else:
+        half = w_max / 2.0
+        f1 = _find_half_power_crossing(f, w, half, i0, 'left', stop=bl)
+        f2 = _find_half_power_crossing(f, w, half, i0, 'right', stop=br)
     df = float(np.median(np.diff(f)))
     f0 = float(f[i0] + _parabolic_vertex(a_s, i0) * df)
 
