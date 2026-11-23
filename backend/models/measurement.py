@@ -19,7 +19,7 @@ class SampleResult:
 class Measurement:
     id: str
     title: str
-    method: int  # 1-ФРЧ, 2-ФРД, 3-СО, 4-СВЧФ
+    method: str  # id метода из реестра backend.core.calculator
     date: datetime
     parameters: Dict[str, Any]
 
@@ -49,12 +49,23 @@ class Measurement:
             'samples': {k: vars(v) for k, v in self.samples.items()}
         }
 
+    @property
+    def method_obj(self):
+        """Метод реестра backend.core.calculator или None."""
+        from backend.core.calculator import get_method
+        return get_method(self.method)
+
     @classmethod
     def from_dict(cls, data: Dict):
+        method = data['method']
+        # совместимость со старыми числовыми идентификаторами (1-4)
+        if isinstance(method, int):
+            from backend.core.calculator.registry import LEGACY_ID_MAP
+            method = LEGACY_ID_MAP.get(method, str(method))
         return cls(
             id=data['id'],
             title=data['title'],
-            method=data['method'],
+            method=str(method),
             date=datetime.fromisoformat(data['date']),
             parameters=data['parameters'],
             f0=data.get('f0', 0),
