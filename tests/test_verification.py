@@ -32,7 +32,7 @@ from verification.forward_model import (delL_mfch, fe_mfd, fe_msr9,
 
 ROOT = Path(__file__).resolve().parent.parent
 ARCHIVE_GLOB = str(ROOT / 'measurement_data' / '*.txt')
-R_DATA = ROOT.parent / 'main' / 'r_data.txt'
+R_DATA = ROOT / 'r_data.txt'
 REPORT_PATH = ROOT / 'verification' / 'verification_report.md'
 
 SWEEP_START, SWEEP_STOP = 8e9, 12e9
