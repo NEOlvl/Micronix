@@ -124,6 +124,8 @@ class Method:
     name: str = ''
     standard: str = ''
     description: str = ''
+    # категория для группировки в GUI ('Диэлектрики' / 'Ферриты')
+    category: str = 'Диэлектрики'
     inputs: Sequence[MethodInput] = ()
     # варианты метода (id -> название), если метод имеет несколько схем расчёта
     variants: Optional[Dict[str, str]] = None

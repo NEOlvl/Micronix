@@ -46,10 +46,17 @@ class MeasurementProcessWidget(QWidget):
         self.measurement_data = measurement_data
         self.measure_id = measurement_data.get('measurement_id', 'unknown')
         self.method_id = measurement_data.get('method', 1)
+        # Сессия измерения backend (ТЗ-7): sweep -> резонанс -> расчёт
+        self.session = None
+        sessions = getattr(backend, 'sessions', None)
+        if sessions is not None:
+            self.session = sessions.get(
+                measurement_data.get('session_id'))
         self.current_stage = 0
         self.samples_added = []
         self.is_active = True
         self.waiting_for_sample = False
+        self._base_done = False
 
         # Для работы с файлами данных
         self.data_files = []
@@ -610,15 +617,9 @@ class MeasurementProcessWidget(QWidget):
 
     def start_measurement_process(self):
         """Start the measurement process"""
-        print(f"Starting measurement for method: {self.method_id}")
-
-        # Устанавливаем заголовок с методом
-        method_names = {
-            1: "ФРЧ", 2: "ФРД", 3: "СО",
-            4: "СВЧФ1", 5: "ЩР", 6: "СВЧФ2"
-        }
-        method_name = method_names.get(self.method_id, f"Метод {self.method_id}")
-
+        method_name = (self.measurement_data.get('method_name')
+                       or (self.session.method.name if self.session
+                           else str(self.method_id)))
         if hasattr(self, 'title_label'):
             self.title_label.setText(f"Исследование: {method_name}")
 
@@ -671,9 +672,18 @@ class MeasurementProcessWidget(QWidget):
                         # Активируем следующий этап
                         self.update_stage_info()
 
-                        # Если достигли этапа добавления образца
-                        if self.current_stage == 3:  # "Ожидание образца"
+                        if self.current_stage == 2:
+                            # Реальный съём АЧХ без образца (ТЗ-9)
+                            self._measure_base()
+                        elif self.current_stage == 3:  # "Ожидание образца"
                             self.wait_for_sample()
+                        elif self.current_stage >= 4:
+                            # Сбор данных образцов — ждём действий
+                            # оператора (ещё образец / завершить)
+                            self.progress_timer.stop()
+                            if hasattr(self, 'finish_btn'):
+                                self.finish_btn.setEnabled(
+                                    bool(self.samples_added))
                     else:
                         # Все этапы завершены
                         self.complete_measurement()
@@ -778,8 +788,75 @@ class MeasurementProcessWidget(QWidget):
 
         self.info_layout.addWidget(instruction)
 
+    def _measure_base(self):
+        """Реальный съём АЧХ пустого резонатора через сессию (ТЗ-9)."""
+        if self.session is None:
+            return
+        try:
+            res = self.session.measure_base()
+            sweep = self.session.base['sweep']
+            x_ghz = [f / 1e9 for f in sweep['frequencies']]
+            self.graph.plot_widget.clear()
+            self.graph.plot_widget.plot(
+                x_ghz, sweep['amplitudes'],
+                pen=pg.mkPen(color='#7879F1', width=2),
+                name='Без образца')
+            self._base_done = True
+            self.status_title.setText("АЧХ без образца снята")
+            self.status_desc.setText(
+                f"Резонанс {res['f0'] / 1e9:.4f} ГГц, "
+                f"Q = {res['Q']:.0f}, глубина {res['depth_db']:.1f} дБ")
+        except Exception as exc:
+            self._fail_stage(f"Ошибка съёма АЧХ: {exc}")
+
+    def _measure_sample(self, name: str):
+        """Съём АЧХ с образцом + расчёт метода (ТЗ-9)."""
+        if self.session is None:
+            return
+        try:
+            smp = self.session.measure_sample(name)
+            sweep = self.session.base['sweep']
+            x_ghz = [f / 1e9 for f in sweep['frequencies']]
+            self.graph.plot_widget.plot(
+                x_ghz, smp.sweep_y,
+                pen=pg.mkPen(color='#FF8E53', width=2), name=smp.name)
+
+            v = smp.result.values
+            e = v.get('E')
+            tgo = v.get('tgo')
+            lines = []
+            if e is not None:
+                lines.append(f"E = {e:.4g}")
+            if tgo is not None:
+                lines.append(f"tg\u03b4 = {tgo:.4g}")
+            for err in smp.result.errors:
+                lines.append(f"⚠ {err}")
+            for w in smp.result.warnings:
+                lines.append(f"⚠ {w}")
+            self.status_title.setText(
+                f"{smp.name}: измерено" if smp.result.ok
+                else f"{smp.name}: результат вне диапазонов")
+            self.status_desc.setText('; '.join(lines) or smp.name)
+            self.samples_added.append({
+                'name': smp.name,
+                'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                'E': e, 'tgo': tgo,
+            })
+        except Exception as exc:
+            self._fail_stage(f"Ошибка измерения образца: {exc}")
+
+    def _fail_stage(self, message: str):
+        """Контролируемая остановка этапа с диагностикой."""
+        self.is_active = False
+        if hasattr(self, 'progress_timer'):
+            self.progress_timer.stop()
+        if hasattr(self, 'status_title'):
+            self.status_title.setText("Ошибка измерения")
+        if hasattr(self, 'status_desc'):
+            self.status_desc.setText(message)
+
     def sample_installed(self):
-        """Образец установлен - продолжаем измерение"""
+        """Образец установлен — реальный съём и расчёт (ТЗ-9)."""
         self.waiting_for_sample = False
 
         # Скрываем инструкцию если есть info_layout
@@ -789,33 +866,41 @@ class MeasurementProcessWidget(QWidget):
                 if item.widget():
                     item.widget().deleteLater()
 
-        # Возобновляем таймер прогресса
-        if hasattr(self, 'progress_timer'):
-            self.progress_timer.start(500)
+        if hasattr(self, 'status_title'):
+            self.status_title.setText("Измерение образца...")
+
+        # Реальный съём АЧХ с образцом и расчёт метода
+        name = (self.sample_name_input.text().strip()
+                if hasattr(self, 'sample_name_input') else '')
+        self._measure_sample(name)
+
+        if not self.is_active:
+            return
+
+        # Этап "Сбор данных образца" — заполнен
+        self.current_stage = 4
+        self.update_stage_info()
 
         # Активируем поле ввода имени образца
         if hasattr(self, 'sample_name_input'):
             self.sample_name_input.setEnabled(True)
-            self.sample_name_input.setPlaceholderText("Введите имя образца")
+            self.sample_name_input.clear()
+            self.sample_name_input.setPlaceholderText(
+                "Имя следующего образца")
 
-        # Обновляем кнопку
+        # Кнопка "ещё один образец" — возвращает в ожидание установки
         if hasattr(self, 'continue_btn'):
-            self.continue_btn.setText("Добавить образец")
-
-            # Отключаем старые соединения
+            self.continue_btn.setText("Добавить ещё образец")
             try:
                 self.continue_btn.clicked.disconnect()
-            except:
+            except Exception:
                 pass
+            self.continue_btn.clicked.connect(self.wait_for_sample)
+            self.continue_btn.setEnabled(True)
 
-            self.continue_btn.clicked.connect(self.add_sample)
-
-        # Обновляем статус
-        if hasattr(self, 'status_title'):
-            self.status_title.setText("Образец установлен")
-
-        if hasattr(self, 'status_desc'):
-            self.status_desc.setText("Введите имя образца и при необходимости выберите файл данных")
+        # Завершение доступно после хотя бы одного образца (ТЗ-7)
+        if hasattr(self, 'finish_btn'):
+            self.finish_btn.setEnabled(bool(self.samples_added))
 
     def select_data_file(self):
         """Выбор файла с данными измерений"""
@@ -960,41 +1045,46 @@ class MeasurementProcessWidget(QWidget):
             self.sample_name_input.setEnabled(False)
 
     def finish_measurement(self):
-        """Finish and save the measurement"""
+        """Сохранить сессию в БД и сформировать PDF-протокол (ТЗ-8)."""
         try:
-            # Сохраняем результаты в бэкенд
-            result_data = {
-                "id_m": self.measure_id,
-                "samples": self.samples_added,
-                "status": "completed"
-            }
+            self.current_stage = 5
+            self.update_stage_info()
 
-            response = self.backend.query("method_end", result_data)
-
-            if response and response.get('success', False):
-                if hasattr(self, 'status_title'):
-                    self.status_title.setText("Результаты сохранены")
-
-                if hasattr(self, 'status_desc'):
-                    self.status_desc.setText("Измерение успешно завершено и сохранено в базе данных.")
+            if self.session is not None:
+                measure_id = self.session.finish()
+                try:
+                    pdf_path = self.backend.generate_report(measure_id)
+                    report_info = f"Протокол: {pdf_path}"
+                except Exception as exc:
+                    report_info = f"PDF не создан: {exc}"
             else:
-                if hasattr(self, 'status_title'):
-                    self.status_title.setText("Ошибка сохранения")
+                measure_id = self.measure_id
+                report_info = ""
 
-                if hasattr(self, 'status_desc'):
-                    self.status_desc.setText("Не удалось сохранить результаты. Проверьте подключение.")
+            self.current_stage = 6
+            self.update_stage_info()
+            for bar in self.bars:
+                parent = bar.parent()
+                if parent:
+                    bar.setFixedWidth(parent.width())
+            self.progress_percent.setText("100%")
 
-            # Эмитируем сигнал завершения
+            if hasattr(self, 'status_title'):
+                self.status_title.setText("Результаты сохранены")
+            if hasattr(self, 'status_desc'):
+                self.status_desc.setText(
+                    f"Измерение #{measure_id} сохранено в базе. "
+                    f"{report_info}".strip())
+
+            if hasattr(self, 'continue_btn'):
+                self.continue_btn.setEnabled(False)
+            if hasattr(self, 'finish_btn'):
+                self.finish_btn.setEnabled(False)
+
             self.measurement_finished.emit()
 
         except Exception as e:
-            print(f"Error finishing measurement: {e}")
-
-            if hasattr(self, 'status_title'):
-                self.status_title.setText("Ошибка")
-
-            if hasattr(self, 'status_desc'):
-                self.status_desc.setText(f"Ошибка при завершении измерения: {str(e)}")
+            self._fail_stage(f"Ошибка при завершении измерения: {e}")
 
     def stop_measurement(self):
         """Stop the measurement process"""

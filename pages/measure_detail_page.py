@@ -3,6 +3,7 @@ Measure detail page - optimized version
 """
 
 import numpy as np
+import pyqtgraph as pg
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QSplitter, QTableWidgetItem)
 from pages.base_page import BasePage
@@ -167,18 +168,19 @@ class MeasureDetailPage(BasePage):
 
     def update_graph(self, data):
         """Update graph with measurement data"""
-        self.graph.plot_widget.clear()
-
-        # Plot baseline data
-        x_data = np.array(data['x'])
-        y_data = np.array(data['y_res'])
-        self.graph.plot_data(x_data, y_data, Styles.PRIMARY, 2, "Без образца")
-
-        # Plot samples
-        if data.get('y_samples'):
-            for sample_idx, sample in data['y_samples'].items():
-                sample_y = np.array(sample['y_res'])
-                self.graph.plot_data(x_data, sample_y, Styles.SECONDARY, 2, sample['name'])
+        if not self.graph.load_data_from_json(data):
+            # fallback: базовая кривая напрямую (x в Гц -> ГГц)
+            self.graph.plot_widget.clear()
+            x_data = np.array(data['x'], dtype=float) / 1e9
+            y_data = np.array(data['y_res'], dtype=float)
+            self.graph.plot_widget.plot(
+                x_data, y_data, pen=pg.mkPen(color='#7879F1', width=2),
+                name='Без образца')
+            for sample in (data.get('y_samples') or {}).values():
+                self.graph.plot_widget.plot(
+                    x_data, np.array(sample['y_res'], dtype=float),
+                    pen=pg.mkPen(color='#FF8E53', width=2),
+                    name=sample['name'])
 
     def update_info_panel(self, data):
         """Update the information panel"""
@@ -189,22 +191,23 @@ class MeasureDetailPage(BasePage):
                 item.widget().deleteLater()
 
         # Baseline info
-        baseline_title = WidgetFactory.create_label("Без образца", level=3)
+        baseline_title = WidgetFactory.create_label("Без образца", font_size=15, bold=True)
         self.info_layout.addWidget(baseline_title)
 
         # Add sample info
         if data.get('y_samples'):
             for sample_idx, sample in data['y_samples'].items():
-                sample_title = WidgetFactory.create_label(sample['name'], level=3)
+                sample_title = WidgetFactory.create_label(str(sample.get('name') or sample_idx), font_size=15, bold=True)
                 sample_title.setStyleSheet("margin-top: 15px;")
                 self.info_layout.addWidget(sample_title)
 
-                # Sample details
-                details_text = f"""
-                F₀: 9.87 ГГц
-                Q: 789
-                Толщина: 2.5 мм
-                """
+                # Sample details — реальные значения из записи
+                fe = sample.get('fe')
+                details_text = '\n'.join(filter(None, [
+                    f"fE: {float(fe) / 1e9:.4f} ГГц" if fe else None,
+                    f"E: {sample['E']:.4g}" if sample.get('E') is not None else None,
+                    f"tg\u03b4: {sample['tgo']:.4g}" if sample.get('tgo') is not None else None,
+                ])) or 'Нет данных'
 
                 details_label = WidgetFactory.create_label(
                     details_text.strip(),
@@ -226,8 +229,12 @@ class MeasureDetailPage(BasePage):
             row = self.results_table.rowCount()
             self.results_table.insertRow(row)
 
+            tgo = sample.get('tgo')
+            e_val = sample.get('E')
             self.results_table.setItem(row, 0, QTableWidgetItem(str(i)))
-            self.results_table.setItem(row, 1, QTableWidgetItem(sample['name']))
-            self.results_table.setItem(row, 2, QTableWidgetItem(f"{sample['tgo']:.8f}"))
-            self.results_table.setItem(row, 3, QTableWidgetItem(f"{sample['E']:.3f}"))
+            self.results_table.setItem(row, 1, QTableWidgetItem(str(sample.get('name') or i)))
+            self.results_table.setItem(row, 2, QTableWidgetItem(
+                f"{tgo:.8f}" if tgo is not None else '-'))
+            self.results_table.setItem(row, 3, QTableWidgetItem(
+                f"{e_val:.3f}" if e_val is not None else '-'))
             self.results_table.setItem(row, 4, QTableWidgetItem("1 * 10^-4"))

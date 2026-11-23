@@ -62,16 +62,40 @@ class DatabaseError(Exception):
     """Контролируемая ошибка хранилища."""
 
 
+class _SharedConnection:
+    """Обёртка общего соединения: `with` не закрывает его."""
+
+    def __init__(self, con: sqlite3.Connection):
+        self._con = con
+
+    def __enter__(self) -> sqlite3.Connection:
+        return self._con
+
+    def __exit__(self, *exc):
+        if exc[0] is None:
+            self._con.commit()
+        else:
+            self._con.rollback()
+        return False
+
+
 class DatabaseManager:
     """CRUD-интерфейс к хранилищу измерений."""
 
     def __init__(self, db_path: str = DEFAULT_DB_PATH):
         self.db_path = str(db_path)
+        self._shared_con: Optional[sqlite3.Connection] = None
         if self.db_path != ':memory:':
             Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
         self._init_schema()
 
     def _connect(self) -> sqlite3.Connection:
+        # :memory: живёт в пределах одного соединения — держим общее
+        if self.db_path == ':memory:':
+            if self._shared_con is None:
+                self._shared_con = sqlite3.connect(':memory:')
+                self._shared_con.execute('PRAGMA foreign_keys = ON')
+            return _SharedConnection(self._shared_con)
         con = sqlite3.connect(self.db_path)
         con.execute('PRAGMA foreign_keys = ON')
         return con

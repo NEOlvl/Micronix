@@ -13,14 +13,23 @@ from styles import Styles
 
 
 class NewMeasurementPage(BasePage):
-    """Page for creating new measurements"""
+    """Page for creating new measurements.
+
+    Карточки методов и форма параметров строятся по реестру
+    методов backend (ТЗ-9): inputs[] -> поля формы, validate() ->
+    проверка перед стартом (ТЗ-7).
+    """
     measurement_started = pyqtSignal(dict)
     start_measurement_process = pyqtSignal(dict)
 
     def __init__(self, backend, parent=None):
         # Сначала устанавливаем атрибуты
         self.backend = backend
-        self.selected_method = 1
+        self._method_meta = {m['id']: m
+                             for m in backend.list_methods()}
+        self.selected_method = next(iter(self._method_meta), None)
+        self.selected_variant = None
+        self._param_fields = {}
 
         # Потом вызываем родительский конструктор
         super().__init__("", "", parent)  # Пустые заголовки, т.к. используем кастомный header
@@ -107,21 +116,14 @@ class NewMeasurementPage(BasePage):
         grid_layout.setSpacing(15)
         grid_layout.setContentsMargins(0, 0, 0, 0)
 
-        # Method cards - всего 6 методов
-        methods = [
-            (1, "ФРЧ", "Метод измерения при фиксированной частоте"),
-            (2, "ФРД", "Метод измерения при фиксированной длинне"),
-            (3, "СО", "Метод измерения для стержневых образцов"),
-            (4, "СВЧФ1", "Метод первый для измерения СВЧ ферритов"),
-            (5, "ЩР", "Метод измерения щелевыйм резонатором"),
-            (6, "СВЧФ2", "Метод второй для измерения СВЧ ферритов")
-        ]
-
-        for i, (method_id, name, description) in enumerate(methods):
+        # Карточки методов — из реестра backend (ТЗ-9)
+        for i, meta in enumerate(self._method_meta.values()):
             row = i // 3
             col = i % 3
-            card = self.create_method_card(method_id, name, description, "#7879F1")
-            card.method_id = method_id
+            card = self.create_method_card(
+                meta['id'], meta['name'],
+                meta.get('description') or meta['standard'], "#7879F1")
+            card.method_id = meta['id']
             grid_layout.addWidget(card, row, col)
 
         parent_layout.addWidget(grid_widget)
@@ -197,19 +199,11 @@ class NewMeasurementPage(BasePage):
         return card
 
     def setup_method_parameters(self, parent_layout):
-        """Setup method parameters section"""
-        # Section title
-        method_names = {
-            1: "ФРЧ - Метод измерения при фиксированной частоте",
-            2: "ФРД - Метод измерения при фиксированной длинне",
-            3: "СО - Метод измерения для стержневых образцов",
-            4: "СВЧФ1 - Метод первый для измерения СВЧ ферритов",
-            5: "ЩР - Метод измерения щелевыйм резонатором",
-            6: "СВЧФ2 - Метод второй для измерения СВЧ ферритов"
-        }
-
+        """Форма параметров — генерируется по inputs[] метода (ТЗ-9)."""
+        meta = self._method_meta.get(self.selected_method)
         title = WidgetFactory.create_label(
-            f"Параметры исследования: {method_names.get(self.selected_method, 'Метод')}",
+            f"Параметры исследования: "
+            f"{meta['name'] if meta else self.selected_method}",
             font_size=18,
             bold=True
         )
@@ -220,15 +214,31 @@ class NewMeasurementPage(BasePage):
         params_layout = QVBoxLayout(params_container)
         params_layout.setSpacing(20)
 
-        # Оставляем только Дополнительные параметры, переименовываем в "Настройка резонатора"
-        additional_group = self.create_resonator_settings_group()  # Переименованный метод
-        params_layout.addWidget(additional_group)
+        params_layout.addWidget(self.create_resonator_settings_group())
+        params_layout.addWidget(self._make_error_label())
 
         parent_layout.addWidget(params_container)
 
+    def _make_error_label(self):
+        """Метка ошибок валидации параметров."""
+        self.error_label = QLabel("")
+        self.error_label.setWordWrap(True)
+        self.error_label.setVisible(False)
+        self.error_label.setStyleSheet("""
+            QLabel {
+                color: #FF6B6B;
+                font-size: 13px;
+                background: rgba(239, 68, 68, 0.1);
+                border: 1px solid rgba(239, 68, 68, 0.4);
+                border-radius: 6px;
+                padding: 10px;
+            }
+        """)
+        return self.error_label
+
     def create_resonator_settings_group(self):
-        """Create resonator settings group - бывшие Дополнительные параметры"""
-        group = QGroupBox("Предварительная настройка перед началом измерения")  # Переименовали
+        """Группа параметров: inputs[] метода + общие поля среды."""
+        group = QGroupBox("Предварительная настройка перед началом измерения")
         group.setStyleSheet(f"""
             QGroupBox {{
                 color: {Styles.TEXT_PRIMARY};
@@ -251,28 +261,48 @@ class NewMeasurementPage(BasePage):
         layout.setVerticalSpacing(12)
         layout.setHorizontalSpacing(20)
 
-        # Общие для всех методы параметры резонатора
-        if self.selected_method in [1, 2, 3, 5]:
-            self.index_combo = QComboBox()
-            self.index_combo.addItems(["2", "3", "4", "5"])
-            self.index_combo.setCurrentText("2")
-            self.index_combo.setStyleSheet(Styles.INPUT_FIELD)
+        meta = self._method_meta.get(self.selected_method)
+        self._param_fields = {}
 
-            self.d_res_input = WidgetFactory.create_input("50.0")
-            self.h_res_input = WidgetFactory.create_input("90.0")
+        # Вариант расчёта, если метод их имеет (СВЧФ)
+        variants = (meta or {}).get('variants')
+        if variants:
+            if self.selected_variant not in variants:
+                self.selected_variant = next(iter(variants))
+            self.variant_combo = QComboBox()
+            for vid, vname in variants.items():
+                self.variant_combo.addItem(vname, vid)
+            self.variant_combo.setCurrentIndex(
+                list(variants).index(self.selected_variant))
+            self.variant_combo.setStyleSheet(Styles.INPUT_FIELD)
+            self.variant_combo.currentIndexChanged.connect(
+                lambda _: self.select_variant(
+                    self.variant_combo.currentData()))
+            layout.addRow("Вариант расчёта:", self.variant_combo)
+        else:
+            self.selected_variant = None
 
-            layout.addRow("Продольный индекс колебаний:", self.index_combo)
-            layout.addRow("Диаметр резонатора (мм):", self.d_res_input)
-            layout.addRow("Высота резонатора (мм):", self.h_res_input)
+        # Поля по описанию inputs[] метода (ТЗ-9)
+        if meta:
+            form = self.backend.method_form(
+                self.selected_method, self.selected_variant)
+            for spec in form['inputs']:
+                default = spec.get('default')
+                edit = WidgetFactory.create_input(
+                    '' if default is None else str(default))
+                label = spec['label']
+                if spec.get('unit'):
+                    label += f", {spec['unit']}"
+                if spec.get('bounds'):
+                    lo, hi = spec['bounds']
+                    label += f" [{lo:g}–{hi:g}]"
+                    edit.setToolTip(
+                        f"Допустимый диапазон: {lo:g}…{hi:g} "
+                        f"{spec.get('unit') or ''}")
+                layout.addRow(label + ':', edit)
+                self._param_fields[spec['name']] = edit
 
-        elif self.selected_method in [4, 6]:
-            self.d_res_input = WidgetFactory.create_input("11.0")
-            self.d_sample_input = WidgetFactory.create_input("0.81")
-
-            layout.addRow("Радиус резонатора (мм):", self.d_res_input)
-            layout.addRow("Радиус образца (мм):", self.d_sample_input)
-
-        # Параметры окружающей среды (общие для всех)
+        # Параметры окружающей среды (общие, ТЗ-7 — данные датчиков)
         self.temp_input = WidgetFactory.create_input("25.0")
         self.humidity_input = WidgetFactory.create_input("50.0")
 
@@ -308,11 +338,17 @@ class NewMeasurementPage(BasePage):
     def select_method(self, method_id):
         """Select a different method"""
         self.selected_method = method_id
+        self.selected_variant = None
 
         # Обновляем выделение карточек
         self.update_method_cards_selection()
 
         # Clear and rebuild parameters section
+        self.refresh_parameters()
+
+    def select_variant(self, variant_id):
+        """Выбор варианта расчёта (СВЧФ) — пересобирает поля."""
+        self.selected_variant = variant_id
         self.refresh_parameters()
 
     def update_method_cards_selection(self):
@@ -372,136 +408,59 @@ class NewMeasurementPage(BasePage):
 
     def clear_form(self):
         """Clear all form fields"""
-        # Очищаем поля в зависимости от метода
-        if self.selected_method in [1, 2, 3, 5]:
-            if hasattr(self, 'index_combo'):
-                self.index_combo.setCurrentIndex(0)
-            if hasattr(self, 'd_res_input'):
-                self.d_res_input.clear()
-            if hasattr(self, 'h_res_input'):
-                self.h_res_input.clear()
-
-        elif self.selected_method in [4, 6]:
-            if hasattr(self, 'd_res_input'):
-                self.d_res_input.clear()
-            if hasattr(self, 'd_sample_input'):
-                self.d_sample_input.clear()
-
+        for edit in self._param_fields.values():
+            edit.clear()
         self.temp_input.clear()
         self.humidity_input.clear()
+        if hasattr(self, 'error_label'):
+            self.error_label.setVisible(False)
 
     def start_measurement(self):
-        """Start the measurement process"""
-        # Проверка на уже идущее измерение
-        if hasattr(self, '_measurement_in_progress') and self._measurement_in_progress:
+        """Валидация по inputs[] (ТЗ-7) и старт сессии измерения."""
+        if getattr(self, '_measurement_in_progress', False):
             print("Measurement already in progress")
             return
 
-        # Устанавливаем флаг
+        params = {name: edit.text() for name, edit
+                  in self._param_fields.items()}
+        params['temperature'] = self.temp_input.text() or '25.0'
+        params['humidity'] = self.humidity_input.text() or '50.0'
+
+        errors = self.backend.validate_params(
+            self.selected_method, params, self.selected_variant)
+        if errors:
+            self._show_param_errors(errors)
+            return
+        self.error_label.setVisible(False)
+
         self._measurement_in_progress = True
-
-        # Collect data from form
-        measurement_data = self.collect_measurement_data()
-        print(f"Collected data: {measurement_data}")
-
-        # Call backend to create measurement
-        response = self.backend.query("new_create", measurement_data)
-        print(f"Backend response: {response}")
-
-        if response and 'id' in response:
-            # Добавляем ID измерения в данные
-            measurement_data['measurement_id'] = response['id']
-            measurement_data['measurement_response'] = response
-
-            print(f"Emitting measurement_started with: {measurement_data}")
-
-            # Эмитируем сигнал вместо открытия диалога
-            self.measurement_started.emit(measurement_data)
-        else:
-            # Сбрасываем флаг если ошибка
+        try:
+            meta = self._method_meta.get(self.selected_method, {})
+            title = (meta.get('name') or self.selected_method)
+            session = self.backend.start_measurement(
+                self.selected_method, params,
+                title=title, variant=self.selected_variant)
+        except Exception as exc:
             self._measurement_in_progress = False
-            print("Backend returned no ID or error")
+            self._show_param_errors(
+                getattr(exc, 'errors', [str(exc)]))
+            return
 
-    def get_resonator_params(self):
-        """Получить все параметры резонатора"""
-        params = {}
+        self.measurement_started.emit({
+            'session_id': session.id,
+            'measurement_id': session.id,
+            'method': self.selected_method,
+            'method_name': title,
+        })
 
-        # Собираем все поля в зависимости от метода
-        if self.selected_method in [1, 2, 3, 5]:
-            params['index'] = self.index_combo.currentText() if hasattr(self, 'index_combo') else "2"
-            params['d_res'] = self.d_res_input.text() if hasattr(self, 'd_res_input') else "50.0"
-            params['h_res'] = self.h_res_input.text() if hasattr(self, 'h_res_input') else "90.0"
-        elif self.selected_method in [4, 6]:
-            params['d_res'] = self.d_res_input.text() if hasattr(self, 'd_res_input') else "11.0"
-            params['d_sample'] = self.d_sample_input.text() if hasattr(self, 'd_sample_input') else "0.81"
-
-        # Общие параметры
-        params['temperature'] = self.temp_input.text() or "25.0"
-        params['humidity'] = self.humidity_input.text() or "50.0"
-
-        return params
-
-    def collect_measurement_data(self):
-        """Collect measurement data from form"""
-        data = {
-            "method": self.selected_method,
-            "temperature": float(self.temp_input.text() or "25.0"),
-            "humidity": float(self.humidity_input.text() or "50.0"),
-            "data": {
-                str(self.selected_method): {}
-            }
-        }
-
-        # Method-specific data - только параметры резонатора
-        if self.selected_method == 1:  # ФРЧ
-            data["data"][str(self.selected_method)] = {
-                "index": self.index_combo.currentText() if hasattr(self, 'index_combo') else "2",
-                "d_res": self.d_res_input.text() if hasattr(self, 'd_res_input') else "50.0",
-                "h_res": self.h_res_input.text() if hasattr(self, 'h_res_input') else "90.0"
-            }
-        elif self.selected_method == 2:  # ФРД
-            data["data"][str(self.selected_method)] = {
-                "index": self.index_combo.currentText() if hasattr(self, 'index_combo') else "2",
-                "d_res": self.d_res_input.text() if hasattr(self, 'd_res_input') else "45.0",
-                "h_res": self.h_res_input.text() if hasattr(self, 'h_res_input') else "45.0"
-            }
-        elif self.selected_method == 3:  # СО
-            data["data"][str(self.selected_method)] = {
-                "index": self.index_combo.currentText() if hasattr(self, 'index_combo') else "1",
-                "d_res": self.d_res_input.text() if hasattr(self, 'd_res_input') else "22.5",
-                "h_res": self.h_res_input.text() if hasattr(self, 'h_res_input') else "45.0"
-            }
-        elif self.selected_method == 4:  # СВЧФ
-            data["data"][str(self.selected_method)] = {
-                "d_res": self.d_res_input.text() if hasattr(self, 'd_res_input') else "11.0",
-                "d_sample": self.d_sample_input.text() if hasattr(self, 'd_sample_input') else "0.81"
-            }
-        elif self.selected_method == 5:
-            data["data"][str(self.selected_method)] = {
-                "index": self.index_combo.currentText() if hasattr(self, 'index_combo') else "2",
-                "d_res": self.d_res_input.text() if hasattr(self, 'd_res_input') else "50.0",
-                "h_res": self.h_res_input.text() if hasattr(self, 'h_res_input') else "90.0"
-            }
-        elif self.selected_method == 6:
-            data["data"][str(self.selected_method)] = {
-                "d_res": self.d_res_input.text() if hasattr(self, 'd_res_input') else "11.0",
-                "d_sample": self.d_sample_input.text() if hasattr(self, 'd_sample_input') else "0.81"
-            }
-
-        return data
+    def _show_param_errors(self, errors):
+        self.error_label.setText('\n'.join(f'• {e}' for e in errors))
+        self.error_label.setVisible(True)
 
     def show_selected_method_notification(self, method_id):
         """Show notification about selected method"""
-        method_names = {
-            1: "ФРЧ - Метод фиксированной частоты",
-            2: "ФРД - Метод фиксированной длины",
-            3: "СО - Метод для стержневых образцов",
-            4: "СВЧФ - Метод для СВЧ ферритов",
-            5: "Метод 5",
-            6: "Метод 6"
-        }
-
-        method_name = method_names.get(method_id, f"Метод {method_id}")
+        meta = self._method_meta.get(method_id, {})
+        method_name = meta.get('name', f'Метод {method_id}')
 
         # Можно добавить временное уведомление в интерфейсе
         notification = QLabel(f"Выбран метод: {method_name}")

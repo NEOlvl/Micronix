@@ -5,7 +5,7 @@ Main window
 from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                              QStackedWidget, QGraphicsDropShadowEffect, QPushButton)
-from demo_backend import DemoBackend
+from backend.api.micronix_api import MicronixAPI
 from widgets import GradientBackground
 from pages import HomePage, MeasuresPage, MeasureDetailPage, ReportsPage, SettingsPage
 from pages.new_measurement_page import NewMeasurementPage
@@ -18,7 +18,9 @@ class MicronixMainWindow(QMainWindow):
 
     def __init__(self):
         super().__init__()
-        self.backend = DemoBackend()
+        # Симулятор ВАЦ по умолчанию — работа без железа (ТЗ-4);
+        # для реального прибора: MicronixAPI(simulate=False)
+        self.backend = MicronixAPI(simulate=True)
         self.setObjectName("main_window")
         self.showMaximized()
 
@@ -160,6 +162,13 @@ class MicronixMainWindow(QMainWindow):
                                     "Измерение уже выполняется. Завершите текущее измерение перед началом нового.")
             return
 
+        # Обновляем списки при переходе на страницы данных
+        if page_widget is self.reports_page:
+            self.reports_page.load_reports()
+        elif page_widget is self.measures_page and hasattr(
+                self.measures_page, 'load_measurements'):
+            self.measures_page.load_measurements()
+
         # Показываем запрошенную страницу
         self.page_stack.setCurrentWidget(page_widget)
         self.page_stack.show()
@@ -224,6 +233,7 @@ class MicronixMainWindow(QMainWindow):
 
         # Сбрасываем флаг
         self.is_measurement_active = False
+        self.new_measurement_page._measurement_in_progress = False
 
         # Скрываем контейнер процесса
         self.process_container.hide()

@@ -167,15 +167,14 @@ class MeasuresPage(BasePage):
         info_layout.setSpacing(8)
         info_layout.setContentsMargins(0, 0, 0, 0)
 
-        # Заголовок
-        method_names = {
-            1: "Метод фиксированной частоты",
-            2: "Метод фиксированной длины",
-            3: "Метод для стержневых образцов",
-            4: "Метод для СВЧ ферритов"
-        }
+        # Заголовок — имя метода из реестра backend
+        try:
+            method_names = {m['id']: m['name']
+                            for m in self.backend.list_methods()}
+        except AttributeError:
+            method_names = {}
 
-        method_id = measure.get('method_id', 1)
+        method_id = measure.get('method_id')
         method_title = method_names.get(method_id, f"Метод {method_id}")
 
         title = WidgetFactory.create_label(
@@ -196,7 +195,9 @@ class MeasuresPage(BasePage):
         if measure.get('y_samples'):
             for sample_idx, sample in measure['y_samples'].items():
                 sample_name = sample.get('name', f"Образец {sample_idx}")
-                result_text = f"{sample_name}: tgδ={sample.get('tgo', 0):.2e}, ε={sample.get('E', 0):.2f}"
+                result_text = (f"{sample_name}: "
+                               f"tg\u03b4={sample.get('tgo') or 0:.2e}, "
+                               f"\u03b5={sample.get('E') or 0:.2f}")
                 result_label = WidgetFactory.create_label(
                     result_text,
                     color="rgba(255, 255, 255, 0.8)",

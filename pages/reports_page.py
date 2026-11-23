@@ -76,31 +76,57 @@ class ReportsPage(BasePage):
         reports_label = WidgetFactory.create_title("Доступные отчёты", level=2)
         self.layout.addWidget(reports_label)
 
-        # Create grid
-        grid_widget = QWidget()
-        grid_layout = QGridLayout(grid_widget)
-        grid_layout.setSpacing(16)
-        grid_layout.setContentsMargins(0, 0, 0, 0)
-
-        # Sample reports data
-        reports = [
-            ("Отчёт #СВЧФ_1_01122024", "20.11.2024"),
-            ("Отчёт #СВЧФ_3_01122024", "20.11.2024"),
-            ("Отчёт #СО_1_01122024", "20.11.2024"),
-            ("Отчёт #СВЧФ_3_01122024", "20.11.2024")
-        ]
-
-        # Add report cards to grid
-        for i, (title, date) in enumerate(reports):
-            row = i // 2
-            col = i % 2
-            report_card = self.create_report_card(title, date)
-            grid_layout.addWidget(report_card, row, col)
+        # Create grid container (заполняется в load_reports)
+        self.grid_widget = QWidget()
+        self.grid_layout = QGridLayout(self.grid_widget)
+        self.grid_layout.setSpacing(16)
+        self.grid_layout.setContentsMargins(0, 0, 0, 0)
 
         # Add grid to layout
-        self.layout.addWidget(grid_widget, 1)
+        self.layout.addWidget(self.grid_widget, 1)
+        self.load_reports()
 
-    def create_report_card(self, title, date):
+    def load_reports(self):
+        """Загрузить карточки отчётов из БД измерений (ТЗ-9)."""
+        for i in reversed(range(self.grid_layout.count())):
+            item = self.grid_layout.itemAt(i)
+            if item.widget():
+                item.widget().deleteLater()
+
+        backend = getattr(self.main_window, 'backend', None)
+        measurements = (backend.list_measurements()
+                        if backend is not None else [])
+
+        if not measurements:
+            empty = WidgetFactory.create_label(
+                "Нет сохранённых измерений",
+                color=Styles.TEXT_SECONDARY, font_size=14)
+            self.grid_layout.addWidget(empty, 0, 0)
+            return
+
+        for i, m in enumerate(measurements):
+            row, col = divmod(i, 2)
+            card = self.create_report_card(
+                f"Отчёт #{m['title']}", str(m['created_at'])[:10],
+                m['measure_id'])
+            self.grid_layout.addWidget(card, row, col)
+
+    def open_report(self, measure_id):
+        """Сгенерировать PDF по измерению и открыть файл (ТЗ-8)."""
+        import os
+        backend = getattr(self.main_window, 'backend', None)
+        if backend is None:
+            return
+        try:
+            path = backend.generate_report(measure_id)
+            os.startfile(path)
+        except Exception as exc:
+            from PyQt6.QtWidgets import QMessageBox
+            QMessageBox.warning(
+                self, "Отчёт",
+                f"Не удалось создать отчёт: {exc}")
+
+    def create_report_card(self, title, date, measure_id=None):
         """Create a report card"""
         from widgets import ModernCard
 
@@ -140,7 +166,10 @@ class ReportsPage(BasePage):
         card_layout.addWidget(icon)
         card_layout.addLayout(info_layout, 1)
 
-        # Make card clickable
+        # Make card clickable — открывает сгенерированный PDF
         card.setCursor(Qt.CursorShape.PointingHandCursor)
+        if measure_id:
+            card.mousePressEvent = (
+                lambda e, mid=measure_id: self.open_report(mid))
 
         return card

@@ -121,51 +121,13 @@ class HomePage(BasePage):
         grid_layout.setColumnStretch(1, 1)
         grid_layout.setColumnStretch(2, 1)
 
-        # 6 методов с категориями: 1,2,3,5 - Диэлектрики, 4,6 - Ферриты
-        methods = [
-            {
-                "id": 1,
-                "name": "Метод измерения при фиксированной резонансной частоте",
-                "title": "Измерение диэлектрических параметров материалов методом объёмного резонатора при фиксированной резонансной частоте",
-                "category": "Диэлектрики",
-                "color": "#7879F1"
-            },
-            {
-                "id": 2,
-                "name": "Метод измерения при фиксированной резонансной длине",
-                "title": "Измерение диэлектрических параметров материалов методом объёмного резонатора при фиксированной резонансной длине",
-                "category": "Диэлектрики",
-                "color": "#9A9BFF"
-            },
-            {
-                "id": 3,
-                "name": "Метод измерения для стержневых образцов",
-                "title": "Измерение диэлектрических параметров стержневых образцов методом объёмного резонатора",
-                "category": "Диэлектрики",
-                "color": "#f8c33c"
-            },
-            {
-                "id": 4,
-                "name": "Метод первый для СВЧ ферритов",
-                "title": "Измерение диэлектрических параметров СВЧ ферритов методом объёмного резонатора",
-                "category": "Ферриты",
-                "color": "#FF6B6B"
-            },
-            {
-                "id": 5,
-                "name": "Метод щелевого резонатора",
-                "title": "Описание ...",
-                "category": "Диэлектрики",
-                "color": "#9D7BF1"
-            },
-            {
-                "id": 6,
-                "name": "Метод второй для СВЧ ферритов",
-                "title": "Описание ...",
-                "category": "Ферриты",
-                "color": "#FF8E53"
-            }
-        ]
+        # Карточки методов — из реестра backend (ТЗ-9, ТЗ-3)
+        palette = ["#7879F1", "#9A9BFF", "#f8c33c", "#FF6B6B",
+                   "#9D7BF1", "#FF8E53"]
+        try:
+            methods = self.backend.list_methods()
+        except AttributeError:
+            methods = []
 
         self.method_cards.clear()
         for i, method_data in enumerate(methods):
@@ -175,9 +137,10 @@ class HomePage(BasePage):
             card = MethodCard(
                 method_num=method_data["id"],
                 method_name=method_data["name"],
-                method_title=method_data["title"],
-                category=method_data["category"],
-                color=method_data["color"]
+                method_title=method_data.get("description")
+                             or method_data["standard"],
+                category=method_data.get("category", "Диэлектрики"),
+                color=palette[i % len(palette)]
             )
 
             # Высота для карточек

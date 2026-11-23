@@ -225,10 +225,10 @@ class MeasurementGraphWidget(QWidget):
         frequencies = []
         for freq_str in freq_list:
             try:
-                # Преобразуем строку формата "+8.000000000E+09" в GHz
-                freq_val = float(freq_str.replace('+', '').replace('E', 'e'))
+                # Числа или строки формата "+8.000000000E+09" -> GHz
+                freq_val = float(str(freq_str).replace('+', '').replace('E', 'e'))
                 frequencies.append(freq_val / 1e9)  # Convert to GHz
-            except:
+            except (TypeError, ValueError):
                 frequencies.append(0.0)
         return np.array(frequencies)
 
@@ -237,9 +237,9 @@ class MeasurementGraphWidget(QWidget):
         amplitudes = []
         for amp_str in amp_list:
             try:
-                amp_val = float(amp_str.replace('E', 'e'))
+                amp_val = float(str(amp_str).replace('E', 'e'))
                 amplitudes.append(amp_val)
-            except:
+            except (TypeError, ValueError):
                 amplitudes.append(0.0)
         return np.array(amplitudes)
 
@@ -374,18 +374,28 @@ class MeasurementGraphWidget(QWidget):
         if 'name' in info_data:
             self.add_info_item("Образец:", info_data['name'], '#7879F1')
 
-        if 'fe' in info_data:
-            fe_val = float(info_data['fe'].replace('+', '').replace('E', 'e')) / 1e9
-            self.add_info_item("Частота резонанса:", f"{fe_val:.3f} ГГц", '#4CAF50')
+        def _num(key):
+            v = info_data.get(key)
+            try:
+                return float(str(v).replace('+', '').replace('E', 'e'))
+            except (TypeError, ValueError):
+                return None
 
-        if 'AE' in info_data:
-            self.add_info_item("Амплитуда:", f"{float(info_data['AE']):.2f} дБ", '#f8c33c')
+        fe = _num('fe')
+        if fe is not None:
+            self.add_info_item("Частота резонанса:", f"{fe / 1e9:.3f} ГГц", '#4CAF50')
 
-        if 'E' in info_data:
-            self.add_info_item("Диэл. проницаемость:", f"{float(info_data['E']):.4f}", '#FF6B6B')
+        ae = _num('AE')
+        if ae is not None:
+            self.add_info_item("Амплитуда:", f"{ae:.2f} дБ", '#f8c33c')
 
-        if 'tgo' in info_data:
-            self.add_info_item("Тангенс угла потерь:", f"{float(info_data['tgo']):.6f}", '#2196F3')
+        e_val = _num('E')
+        if e_val is not None:
+            self.add_info_item("Диэл. проницаемость:", f"{e_val:.4f}", '#FF6B6B')
+
+        tgo = _num('tgo')
+        if tgo is not None:
+            self.add_info_item("Тангенс угла потерь:", f"{tgo:.6f}", '#2196F3')
 
         if 'title' in info_data:
             self.add_info_item("Измерение:", info_data['title'], '#ffffff')
