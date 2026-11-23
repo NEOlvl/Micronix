@@ -73,7 +73,7 @@ def test_missing_resonance_fields_produce_errors():
 def test_out_of_range_result_reported_honestly():
     """tgo вне диапазона -> errors[], при этом E вычислено корректно."""
     r = get_method('mfd').calculate({'t': 1.0, 'D': 45.0, 'L0': 80.0},
-                                    make_res(f2e=9.909375e9))
+                                    make_res(f2e=9.95e9))
     assert not r.ok and r.errors
     assert r.values['E'] == pytest.approx(83.9534326, rel=1e-6)
 

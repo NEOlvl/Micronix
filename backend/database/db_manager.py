@@ -24,7 +24,7 @@ import sqlite3
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from backend.core.calculator.base import ResonanceChannels
 from backend.core.calculator.registry import LEGACY_ID_MAP
@@ -240,33 +240,63 @@ def resonance_from_record(record: Dict) -> ResonanceChannels:
 
 _PARAM_KEY = re.compile(r'data\[\d+\]\[([a-zA-Z_]+)\]')
 
+# Нормализованные ключи архива -> имена inputs[] методов.
+# lambda применяется к значению перед записью.
+_PARAM_ALIASES: Dict[str, Dict[str, Any]] = {
+    'mfch': {'t': 't', 'd_res': 'D', 'h_res': 'L0', 'del_L': 'delL'},
+    'mfd': {'t': 't', 'd_res': 'D', 'h_res': 'L0'},
+    'so': {'d': 'a', 'h_res': 'L',
+           'd_res': ('R0', lambda v: v / 2)},  # в архиве диаметр, метод ждёт радиус
+    'svchf': {'d_res': 'R', 'd_sample': 'r'},
+}
+
 
 def record_from_archive(path) -> Dict:
     """Импорт архивного файла measurement_data/*.txt (JSON) в запись.
 
-    Ключи вида 'data[2][t]' нормализуются в 't' — имена inputs[] методов.
-    Сырой data_param сохраняется под 'params_raw'.
+    Ключи вида 'data[2][t]' нормализуются и переводятся в имена
+    inputs[] методов (см. _PARAM_ALIASES). Сырой data_param под 'params_raw'.
     """
     with open(path, encoding='utf-8') as fh:
         d = json.load(fh)
 
     def num(v):
+        if isinstance(v, str):
+            v = v.replace(',', '.')
         try:
             return float(v)
         except (TypeError, ValueError):
             return None
 
     data_param = d.get('data_param') or {}
-    params = {}
-    for key, val in data_param.items():
-        m = _PARAM_KEY.match(str(key))
-        if m:
-            params[m.group(1)] = num(val) if num(val) is not None else val
     method_raw = data_param.get('method')
     method_id = None
+    method_num = None
     if method_raw is not None:
-        method_id = LEGACY_ID_MAP.get(int(float(method_raw)),
-                                      str(method_raw))
+        method_num = int(float(method_raw))
+        method_id = LEGACY_ID_MAP.get(method_num, str(method_raw))
+
+    # В архиве data_param содержит поля всех методов — берём только свои.
+    prefix = f'data[{method_num}]' if method_num is not None else 'data['
+    normalized = {}
+    for key, val in data_param.items():
+        key = str(key)
+        if not key.startswith(prefix):
+            continue
+        m = _PARAM_KEY.match(key)
+        if m:
+            normalized[m.group(1)] = num(val) if num(val) is not None else val
+
+    aliases = _PARAM_ALIASES.get(method_id or '', {})
+    params = dict(normalized)
+    for src, dst in aliases.items():
+        if src not in normalized or not isinstance(normalized[src], (int, float)):
+            continue
+        if isinstance(dst, tuple):
+            name, transform = dst
+            params[name] = transform(normalized[src])
+        else:
+            params[dst] = normalized[src]
 
     samples = []
     for _, s in sorted((d.get('y_samples') or {}).items(),
