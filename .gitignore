@@ -23,4 +23,7 @@ nuitka-crash-report.xml
 
 # Generated reports and local databases
 *.sqlite3
-reports/*.pdf
+*.db
+report/
+reports/
+data_base/
