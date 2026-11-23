@@ -3,6 +3,8 @@ import numpy as np
 from dataclasses import dataclass
 from typing import Dict, List, Optional
 
+from backend.core.data_processor import extract_resonance_db
+
 
 @dataclass
 class VNAConfig:
@@ -68,34 +70,5 @@ class VNAController:
         return all_values[::2]
 
     def find_resonance_parameters(self, frequencies, amplitudes):
-        """Нахождение резонансных параметров"""
-        float_amps = np.array(amplitudes)
-        idx_min = np.argmin(float_amps)
-        f0 = frequencies[idx_min]
-        A0 = float_amps[idx_min]
-
-        # Поиск f1 и f2 на уровне -3 дБ
-        target_level = A0 + 3
-        idx_left = self._find_crossing(float_amps[:idx_min], target_level, from_right=True)
-        idx_right = self._find_crossing(float_amps[idx_min:], target_level, from_right=False) + idx_min
-
-        f1 = frequencies[idx_left]
-        f2 = frequencies[idx_right]
-        Q = f0 / (f2 - f1)
-
-        return {
-            'f0': f0, 'f1': f1, 'f2': f2,
-            'A0': A0, 'Q': Q,
-            'idx_min': idx_min
-        }
-
-    def _find_crossing(self, data, threshold, from_right=False):
-        """Нахождение пересечения с порогом"""
-        if from_right:
-            data = data[::-1]
-
-        for i, val in enumerate(data):
-            if val >= threshold:
-                return len(data) - i - 1 if from_right else i
-
-        return len(data) - 1 if from_right else 0
+        """Нахождение резонансных параметров АЧХ (ТЗ-5, data_processor)."""
+        return extract_resonance_db(frequencies, amplitudes)
